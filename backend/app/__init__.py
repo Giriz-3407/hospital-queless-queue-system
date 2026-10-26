@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Optional, Type
+from typing import Any, Optional, Type
 from flask import Flask
 from app.config import Config, get_config
 from app.extensions import cors, mongo_manager
@@ -38,11 +38,18 @@ def create_app(config_class: Optional[Type[Config]] = None) -> Flask:
     logger = logging.getLogger(__name__)
     logger.info("Initializing %s in %s mode", app.config.get("APP_NAME"), config_class.__name__)
 
-    # Configure CORS for restricted frontend origin
-    frontend_origin = app.config.get("FRONTEND_ORIGIN", "http://localhost:5173")
+    # Configure CORS for frontend origin(s)
+    frontend_origin_raw = app.config.get("FRONTEND_ORIGIN", "*")
+    if not frontend_origin_raw or frontend_origin_raw.strip() == "*":
+        allowed_origins: Any = "*"
+    elif "," in frontend_origin_raw:
+        allowed_origins = [o.strip() for o in frontend_origin_raw.split(",") if o.strip()]
+    else:
+        allowed_origins = [frontend_origin_raw.strip()]
+
     cors.init_app(
         app,
-        resources={r"/api/*": {"origins": [frontend_origin]}},
+        resources={r"/api/*": {"origins": allowed_origins}},
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization"],
         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

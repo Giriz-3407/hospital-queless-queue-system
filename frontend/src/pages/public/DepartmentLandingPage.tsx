@@ -371,24 +371,27 @@ export const DepartmentLandingPage: React.FC = () => {
               </div>
               <h3 className="text-lg font-bold text-white">Prefer automatic on-device queue alerts?</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                "Want queue updates on your phone? Install the Queueless app to receive on-device notifications when supported. Notification delivery requires the relevant app configuration and your permission."
+                Prefer queue updates and live notifications on your phone? Open directly in the Queueless Android App.
               </p>
             </div>
           </div>
 
-          <div className="self-stretch sm:self-auto flex flex-col items-start sm:items-end justify-center">
+          <div className="self-stretch sm:self-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <a
+              href={`intent://department/${departmentSlug}#Intent;scheme=queueless;package=com.queueless.hospital;end`}
+              className="inline-flex"
+            >
+              <Button className="w-full sm:w-auto bg-sky-500 hover:bg-sky-600 text-white gap-2 font-semibold shadow-md shadow-sky-500/30">
+                <Smartphone className="w-4 h-4" /> Open in App
+              </Button>
+            </a>
             {appInstallUrl ? (
-              <a href={appInstallUrl} target="_blank" rel="noopener noreferrer">
-                <Button className="bg-sky-500 hover:bg-sky-600 text-white gap-2 font-semibold shadow-md shadow-sky-500/30">
-                  Install the App <ExternalLink className="w-4 h-4" />
+              <a href={appInstallUrl} target="_blank" rel="noopener noreferrer" className="inline-flex">
+                <Button variant="outline" className="w-full sm:w-auto text-slate-200 border-white/20 hover:bg-white/10 gap-2 font-semibold">
+                  Install APK <ExternalLink className="w-4 h-4" />
                 </Button>
               </a>
-            ) : (
-              <div className="px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-300 text-center sm:text-right">
-                <span className="font-semibold text-slate-100 block">Android Patient App</span>
-                <span className="text-[11px] text-slate-400">Direct download link will be available upon official hospital rollout</span>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       </Card>

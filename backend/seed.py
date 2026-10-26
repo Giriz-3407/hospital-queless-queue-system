@@ -166,6 +166,7 @@ def seed_demo_data():
 
 def main():
     parser = argparse.ArgumentParser(description="Queueless Hospital Database Seeder")
+    parser.add_argument("--all", action="store_true", help="Seed both administrator account and demonstration data")
     parser.add_argument("--admin", action="store_true", help="Create or update an administrator account")
     parser.add_argument("--demo", action="store_true", help="Seed demonstration data (departments, doctors, patients, queues)")
     parser.add_argument("--email", type=str, help="Administrator email")
@@ -182,7 +183,21 @@ def main():
 
         ensure_indexes(mongo_manager.db)
 
-        if args.admin:
+        if args.all:
+            admin_pwd = args.password or os.getenv("ADMIN_PASSWORD") or "AdminPass123!"
+            admin_email = args.email or os.getenv("ADMIN_EMAIL") or "admin@hospital.org"
+            admin_name = args.name or os.getenv("ADMIN_NAME") or "Hospital Chief Administrator"
+            print("--- Seeding Admin Account ---")
+            seed_admin(email=admin_email, password=admin_pwd, name=admin_name)
+            print()
+            seed_demo_data()
+            print("=======================================================")
+            print(" ALL SEEDING COMPLETE FOR CLOUD / LOCAL MONGODB")
+            print(f" Admin Login:        {admin_email} / {admin_pwd}")
+            print(" Demo Doctor Login:  dr.smith@hospital.org / DoctorPass123!")
+            print(" Demo Patient Login: alice@example.com / PatientPass123!")
+            print("=======================================================\n")
+        elif args.admin:
             seed_admin(email=args.email, password=args.password, name=args.name)
         elif args.demo:
             seed_demo_data()

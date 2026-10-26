@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/api_config.dart';
@@ -16,11 +17,12 @@ class WelcomeScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Server Settings',
-            onPressed: () => ServerSettingsDialog.show(context),
-          ),
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Server Settings',
+              onPressed: () => ServerSettingsDialog.show(context),
+            ),
         ],
       ),
       body: SafeArea(

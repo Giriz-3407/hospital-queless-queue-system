@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,10 +9,39 @@ import '../../../shared/widgets/server_settings_dialog.dart';
 
 /// Screen presenting the authenticated patient's account profile, hospital visit
 /// overview, server configuration shortcut, and secure sign-out.
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
-  Future<void> _logout(BuildContext context, WidgetRef ref) async {
+  @override
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  int _versionTapCount = 0;
+  bool _devSettingsUnlocked = false;
+
+  void _onVersionTap() {
+    if (kDebugMode || _devSettingsUnlocked) {
+      ServerSettingsDialog.show(context);
+      return;
+    }
+    setState(() {
+      _versionTapCount++;
+      if (_versionTapCount >= 5) {
+        _devSettingsUnlocked = true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Developer server settings unlocked for testing.'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        ServerSettingsDialog.show(context);
+      }
+    });
+  }
+
+  Future<void> _logout(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -51,7 +81,7 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
     final user = authState.user;
     final summaryAsync = ref.watch(patientSummaryProvider);
@@ -60,11 +90,12 @@ class ProfileScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Patient Profile'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Server Settings',
-            onPressed: () => ServerSettingsDialog.show(context),
-          ),
+          if (kDebugMode || _devSettingsUnlocked)
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Server Settings',
+              onPressed: () => ServerSettingsDialog.show(context),
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -219,28 +250,35 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
 
-            // Server & Settings Card
+            // Server & Settings Card (Visible in Debug/Testing or if Dev Settings Unlocked)
+            if (kDebugMode || _devSettingsUnlocked) ...[
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.dns_outlined, color: AppTheme.primary),
+                  title: const Text('Backend API Server'),
+                  subtitle: Text(
+                    ApiConfig.baseUrl,
+                    style: const TextStyle(fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => ServerSettingsDialog.show(context),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // App Version Info Card (Tap 5 times in release build to toggle server settings)
             Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.dns_outlined, color: AppTheme.primary),
-                    title: const Text('Backend API Server'),
-                    subtitle: Text(
-                      ApiConfig.baseUrl,
-                      style: const TextStyle(fontSize: 12),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => ServerSettingsDialog.show(context),
-                  ),
-                  const Divider(height: 1, color: AppTheme.border),
-                  const ListTile(
-                    leading: Icon(Icons.info_outline, color: AppTheme.accent),
-                    title: Text('Queueless Hospital System'),
-                    subtitle: Text('Version 1.0.0 • Mobile Client for Patients'),
-                  ),
-                ],
+              child: ListTile(
+                leading: const Icon(Icons.info_outline, color: AppTheme.accent),
+                title: const Text('Queueless Hospital System'),
+                subtitle: Text(
+                  kDebugMode || _devSettingsUnlocked
+                      ? 'Version 1.0.0 • Mobile Client (Dev Mode Active)'
+                      : 'Version 1.0.0 • Mobile Client for Patients',
+                ),
+                onTap: _onVersionTap,
               ),
             ),
             const SizedBox(height: 24),
@@ -253,7 +291,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
               icon: const Icon(Icons.logout_rounded),
               label: const Text('Sign Out'),
-              onPressed: () => _logout(context, ref),
+              onPressed: () => _logout(context),
             ),
             const SizedBox(height: 20),
           ],

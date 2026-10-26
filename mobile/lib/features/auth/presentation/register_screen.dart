@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -76,11 +77,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           onPressed: () => context.go('/welcome'),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Server Settings',
-            onPressed: () => ServerSettingsDialog.show(context),
-          ),
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Server Settings',
+              onPressed: () => ServerSettingsDialog.show(context),
+            ),
         ],
       ),
       body: SafeArea(
