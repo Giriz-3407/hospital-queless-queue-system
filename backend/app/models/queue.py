@@ -44,6 +44,11 @@ class QueueTicket:
     doctor_name: Optional[str] = None
     reason: Optional[str] = None
     notes: Optional[str] = None
+    is_walk_in: bool = False
+    patient_phone: Optional[str] = None
+    patient_age: Optional[int] = None
+    registered_by: Optional[ObjectId] = None
+    registered_by_name: Optional[str] = None
     joined_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     called_at: Optional[datetime] = None
     consultation_started_at: Optional[datetime] = None
@@ -68,6 +73,11 @@ class QueueTicket:
             "doctor_name": self.doctor_name,
             "reason": self.reason,
             "notes": self.notes,
+            "is_walk_in": self.is_walk_in,
+            "patient_phone": self.patient_phone,
+            "patient_age": self.patient_age,
+            "registered_by": self.registered_by,
+            "registered_by_name": self.registered_by_name,
             "joined_at": self.joined_at,
             "called_at": self.called_at,
             "consultation_started_at": self.consultation_started_at,

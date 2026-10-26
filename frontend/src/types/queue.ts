@@ -34,6 +34,8 @@ export interface Department {
   id: string;
   name: string;
   code: string;
+  slug?: string;
+  qr_url?: string;
   description?: string;
   avg_consultation_time: number;
   is_active: boolean;
@@ -71,6 +73,11 @@ export interface QueueTicket {
   doctor_name?: string;
   reason?: string;
   notes?: string;
+  is_walk_in?: boolean;
+  patient_phone?: string;
+  patient_age?: number;
+  registered_by?: string;
+  registered_by_name?: string;
   currently_serving_ticket?: string | null;
   currently_called_ticket?: string | null;
   joined_at?: string;
@@ -84,6 +91,14 @@ export interface QueueTicket {
 
 export interface JoinQueuePayload {
   department_id: string;
+  reason?: string;
+}
+
+export interface WalkInQueuePayload {
+  department_id: string;
+  patient_name: string;
+  phone?: string;
+  age?: number;
   reason?: string;
 }
 

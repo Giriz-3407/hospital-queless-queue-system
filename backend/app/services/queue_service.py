@@ -26,7 +26,7 @@ class QueueService:
         reason: Optional[str] = None,
     ) -> dict[str, Any]:
         """Allows a patient to join a virtual queue for a specific hospital department."""
-        dept = department_repository.find_by_id(department_id)
+        dept = department_repository.find_by_identifier(department_id)
         if not dept or not dept.get("is_active", True):
             raise ValueError("The requested department does not exist or is currently inactive.")
 
@@ -121,6 +121,127 @@ class QueueService:
         )
 
         logger.info("Patient %s joined queue for %s with token %s", patient_id, dept.get("name"), token_number)
+        return self._enrich_ticket(created, dept)
+
+    def register_walk_in(
+        self,
+        receptionist_user: dict[str, Any],
+        department_id: str,
+        patient_name: str,
+        phone: Optional[str] = None,
+        age: Optional[int] = None,
+        reason: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """
+        Allows hospital receptionists and administrators to register a walk-in patient.
+        Reuses the sequential counter and wait calculation engine without fabricating account credentials.
+        """
+        role = receptionist_user.get("role")
+        if role not in ("admin", "staff"):
+            raise PermissionError("Access denied: Only hospital staff and administrators can register walk-in patients.")
+
+        dept = department_repository.find_by_identifier(department_id)
+        if not dept or not dept.get("is_active", True):
+            raise ValueError("The requested department does not exist or is currently inactive.")
+
+        dept_oid = dept["_id"]
+        cleaned_phone = phone.strip() if phone and phone.strip() else None
+
+        # Enforce duplicate prevention when phone number can reliably identify the patient
+        if cleaned_phone:
+            active_phone_ticket = queue_repository.find_active_by_phone(cleaned_phone)
+            if active_phone_ticket:
+                active_dept = active_phone_ticket.get("department_name") or "another department"
+                token = active_phone_ticket.get("token_number", "active ticket")
+                raise ValueError(
+                    f"A patient with phone number '{cleaned_phone}' already holds an active queue ticket ({token}) in {active_dept}. "
+                    "Hospital policy permits at most one active queue ticket per patient."
+                )
+
+        now = datetime.now(timezone.utc)
+        queue_date = now.strftime("%Y-%m-%d")
+
+        # Atomic daily sequential token generation per department
+        token_number, seq = queue_repository.get_next_ticket_number(
+            dept_id=dept_oid,
+            dept_code=dept.get("code", "TKT"),
+            queue_date=queue_date,
+        )
+
+        # Calculate initial position and wait time
+        waiting_count = queue_repository.count_waiting(dept_oid)
+        position = waiting_count + 1
+        patients_ahead = waiting_count
+        avg_time = dept.get("avg_consultation_time", 15)
+        avail_doctors = doctor_repository.count_available(dept_oid)
+
+        if avail_doctors > 0:
+            est_wait = math.ceil((patients_ahead * avg_time) / avail_doctors)
+        else:
+            assigned = doctor_repository.find_by_department(dept_oid, available_only=False)
+            if len(assigned) > 0:
+                est_wait = None  # Doctors assigned but currently none available
+            else:
+                est_wait = patients_ahead * avg_time
+
+        # Unique ObjectId for walk-in patient identifier
+        walk_in_patient_id = ObjectId()
+        receptionist_oid = to_object_id(receptionist_user.get("sub"))
+
+        ticket_doc = {
+            "department_id": dept_oid,
+            "department_name": dept.get("name"),
+            "department_code": dept.get("code"),
+            "patient_id": walk_in_patient_id,
+            "patient_name": patient_name.strip(),
+            "token_number": token_number,
+            "queue_date": queue_date,
+            "position": position,
+            "estimated_wait_minutes": est_wait,
+            "status": QueueStatus.WAITING,
+            "doctor_id": None,
+            "doctor_name": None,
+            "reason": reason.strip() if reason else None,
+            "notes": None,
+            "is_walk_in": True,
+            "patient_phone": cleaned_phone,
+            "patient_age": age,
+            "registered_by": receptionist_oid,
+            "registered_by_name": receptionist_user.get("name"),
+            "joined_at": now,
+            "called_at": None,
+            "consultation_started_at": None,
+            "completed_at": None,
+            "cancelled_at": None,
+            "created_at": now,
+            "updated_at": now,
+        }
+
+        created = queue_repository.create(ticket_doc)
+
+        audit_repository.create_log(
+            action="WALK_IN_REGISTERED",
+            entity_type="queue",
+            entity_id=str(created["_id"]),
+            actor_user_id=receptionist_oid,
+            actor_name=receptionist_user.get("name"),
+            actor_role=role,
+            metadata={
+                "department_name": dept.get("name"),
+                "token_number": token_number,
+                "patient_name": patient_name.strip(),
+                "patient_phone": cleaned_phone,
+                "is_walk_in": True,
+            },
+        )
+
+        logger.info(
+            "Receptionist %s registered walk-in %s with token %s in %s",
+            receptionist_user.get("name"),
+            patient_name,
+            token_number,
+            dept.get("name"),
+        )
         return self._enrich_ticket(created, dept)
 
     def get_patient_queues(self, patient_id: str) -> list[dict[str, Any]]:

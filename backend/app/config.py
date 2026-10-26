@@ -24,6 +24,10 @@ class Config:
     FLASK_PORT = int(os.getenv("FLASK_PORT", "5000"))
     FLASK_DEBUG = os.getenv("FLASK_DEBUG", "false").lower() in ("true", "1", "yes")
 
+    # QR Code Configuration
+    # Single source of truth for public QR destination
+    QR_PUBLIC_BASE_URL = os.getenv("QR_PUBLIC_BASE_URL", "https://httpbin.org/anything")
+
     API_PREFIX = "/api/v1"
     APP_NAME = "Queueless Smart Hospital API"
     APP_VERSION = "1.0.0"

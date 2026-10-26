@@ -1,5 +1,5 @@
 import { apiClient } from './api';
-import { ApiResponse, AdminDashboardStats, AuditLog, Department, Doctor, QueueTicket, User } from '../types';
+import { ApiResponse, AdminDashboardStats, AuditLog, Department, Doctor, QueueTicket, User, WalkInQueuePayload } from '../types';
 
 export interface CreateDoctorPayload {
   name: string;
@@ -86,6 +86,18 @@ export const adminService = {
     if (entityType) params.entity_type = entityType;
     if (action) params.action = action;
     const res = await apiClient.get<ApiResponse<{ logs: AuditLog[]; total: number }>>('/admin/audit-logs', { params });
+    return res.data.data;
+  },
+
+  async registerWalkIn(payload: WalkInQueuePayload): Promise<QueueTicket> {
+    const res = await apiClient.post<ApiResponse<QueueTicket>>('/admin/walk-in', payload);
+    return res.data.data;
+  },
+
+  async getQrConfig(baseUrl?: string): Promise<{ qr_public_base_url: string; departments: Department[] }> {
+    const params: Record<string, string> = {};
+    if (baseUrl) params.base_url = baseUrl;
+    const res = await apiClient.get<ApiResponse<{ qr_public_base_url: string; departments: Department[] }>>('/departments/qr-config', { params });
     return res.data.data;
   },
 };

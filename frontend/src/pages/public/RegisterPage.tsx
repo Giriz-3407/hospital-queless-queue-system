@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { Card, CardContent, CardFooter } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -10,6 +10,10 @@ import { Activity, UserPlus } from 'lucide-react';
 export const RegisterPage: React.FC = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const searchParams = new URLSearchParams(location.search);
+  const redirectParam = searchParams.get('redirect');
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -30,7 +34,11 @@ export const RegisterPage: React.FC = () => {
     setIsLoading(true);
     try {
       await register({ name, email, password, phone, role: 'patient' });
-      navigate('/patient/dashboard');
+      if (redirectParam) {
+        navigate(redirectParam, { replace: true });
+      } else {
+        navigate('/patient/dashboard', { replace: true });
+      }
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please check the details entered.');
     } finally {
@@ -103,7 +111,10 @@ export const RegisterPage: React.FC = () => {
 
             <CardFooter className="justify-center border-t border-slate-100 py-4 text-xs text-slate-500">
               Already have an account?{' '}
-              <Link to="/login" className="text-sky-600 font-semibold hover:underline ml-1">
+              <Link
+                to={redirectParam ? `/login?redirect=${encodeURIComponent(redirectParam)}` : '/login'}
+                className="text-sky-600 font-semibold hover:underline ml-1"
+              >
                 Sign in here
               </Link>
             </CardFooter>

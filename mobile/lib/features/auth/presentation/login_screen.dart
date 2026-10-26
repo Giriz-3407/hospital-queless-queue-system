@@ -34,6 +34,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           _passwordController.text,
         );
 
+    final redirectParam =
+        GoRouterState.of(context).uri.queryParameters['redirect'];
+
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -42,7 +45,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           duration: Duration(seconds: 2),
         ),
       );
-      context.go('/home');
+      if (redirectParam != null && redirectParam.isNotEmpty) {
+        context.go(redirectParam);
+      } else {
+        context.go('/home');
+      }
     }
   }
 
@@ -222,7 +229,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         style: TextStyle(color: AppTheme.textSecondary),
                       ),
                       TextButton(
-                        onPressed: () => context.go('/register'),
+                        onPressed: () {
+                          final redirect = GoRouterState.of(context)
+                              .uri
+                              .queryParameters['redirect'];
+                          if (redirect != null && redirect.isNotEmpty) {
+                            context.go(
+                              '/register?redirect=${Uri.encodeComponent(redirect)}',
+                            );
+                          } else {
+                            context.go('/register');
+                          }
+                        },
                         child: const Text('Register as Patient'),
                       ),
                     ],

@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 from app.schemas.auth import DoctorCreateSchema, DoctorUpdateSchema
 from app.schemas.department import DepartmentCreateSchema, DepartmentUpdateSchema
+from app.schemas.queue import WalkInQueueCreateSchema
 from app.services.auth_service import auth_service
 from app.services.department_service import department_service
 from app.services.queue_service import queue_service
@@ -181,4 +182,26 @@ def list_audit_logs():
         },
         message="Audit logs retrieved successfully.",
         status_code=200,
+    )
+
+
+@admin_bp.route("/admin/walk-in", methods=["POST"])
+@jwt_required
+@roles_required("admin", "staff")
+def register_walk_in():
+    """Register a walk-in patient at the reception/admin console without requiring patient login."""
+    json_data = request.get_json(silent=True) or {}
+    validated = WalkInQueueCreateSchema(**json_data)
+    ticket = queue_service.register_walk_in(
+        receptionist_user=request.current_user,
+        department_id=validated.department_id,
+        patient_name=validated.patient_name,
+        phone=validated.phone,
+        age=validated.age,
+        reason=validated.reason,
+    )
+    return api_response(
+        data=ticket,
+        message=f"Walk-in patient registered. Daily token: {ticket.get('token_number')}",
+        status_code=201,
     )

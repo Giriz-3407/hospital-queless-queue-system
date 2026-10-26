@@ -18,7 +18,9 @@ export const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const from = (location.state as any)?.from?.pathname;
+  const searchParams = new URLSearchParams(location.search);
+  const redirectParam = searchParams.get('redirect');
+  const from = redirectParam || (location.state as any)?.from?.pathname;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,7 +135,10 @@ export const LoginPage: React.FC = () => {
             <CardFooter className="justify-center text-center">
               <p className="text-xs text-slate-600">
                 Don't have an account yet?{' '}
-                <Link to="/register" className="font-semibold text-sky-600 hover:text-sky-700 underline">
+                <Link
+                  to={redirectParam ? `/register?redirect=${encodeURIComponent(redirectParam)}` : '/register'}
+                  className="font-semibold text-sky-600 hover:text-sky-700 underline"
+                >
                   Register as a Patient
                 </Link>
               </p>

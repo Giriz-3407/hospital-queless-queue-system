@@ -21,6 +21,18 @@ def get_departments():
     )
 
 
+@departments_bp.route("/departments/qr-config", methods=["GET"])
+def get_department_qr_config():
+    """Retrieve centralized QR configuration and department list with QR URLs."""
+    base_url_override = request.args.get("base_url")
+    config_data = department_service.get_qr_config(base_url_override=base_url_override)
+    return api_response(
+        data=config_data,
+        message="Department QR code configurations retrieved successfully.",
+        status_code=200,
+    )
+
+
 @departments_bp.route("/departments/<department_id>", methods=["GET"])
 def get_department(department_id: str):
     """Retrieve details for a single department including assigned doctors."""

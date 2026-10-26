@@ -65,5 +65,24 @@ def create_app(config_class: Optional[Type[Config]] = None) -> Flask:
     api_prefix = app.config.get("API_PREFIX", "/api/v1")
     register_blueprints(app, url_prefix=api_prefix)
 
+    # Domain verification assetlinks.json for Android App Links
+    @app.route("/.well-known/assetlinks.json", methods=["GET"])
+    def assetlinks():
+        import json
+        from flask import Response
+        content = [
+            {
+                "relation": ["delegate_permission/common.handle_all_urls"],
+                "target": {
+                    "namespace": "android_app",
+                    "package_name": "com.queueless.hospital",
+                    "sha256_cert_fingerprints": [
+                        "44:8F:05:BC:BE:F7:6B:9C:72:3C:65:FD:4E:A1:3D:3E:2E:17:38:0A:9C:3E:2A:99:CE:05:61:41:2A:48:94:E8"
+                    ]
+                }
+            }
+        ]
+        return Response(json.dumps(content, indent=2), mimetype="application/json")
+
     logger.info("Application factory completed successfully.")
     return app

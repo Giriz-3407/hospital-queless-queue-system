@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from app.schemas.queue import JoinQueueSchema, QueueStatusUpdateSchema
+from app.schemas.queue import JoinQueueSchema, QueueStatusUpdateSchema, WalkInQueueCreateSchema
 from app.services.queue_service import queue_service
 from app.middleware.auth import jwt_required, roles_required
 from app.utils.response import api_response
@@ -100,4 +100,26 @@ def cancel_queue(queue_id: str):
         data=cancelled,
         message="Queue ticket cancelled successfully.",
         status_code=200,
+    )
+
+
+@queues_bp.route("/queues/walk-in", methods=["POST"])
+@jwt_required
+@roles_required("admin", "staff")
+def register_walk_in():
+    """Register a walk-in patient from reception staff."""
+    json_data = request.get_json(silent=True) or {}
+    validated = WalkInQueueCreateSchema(**json_data)
+    ticket = queue_service.register_walk_in(
+        receptionist_user=request.current_user,
+        department_id=validated.department_id,
+        patient_name=validated.patient_name,
+        phone=validated.phone,
+        age=validated.age,
+        reason=validated.reason,
+    )
+    return api_response(
+        data=ticket,
+        message=f"Walk-in patient registered. Daily token: {ticket.get('token_number')}",
+        status_code=201,
     )

@@ -41,6 +41,23 @@ class QueueRepository:
             ]},
         })
 
+    def find_active_by_phone(self, phone: str) -> Optional[dict[str, Any]]:
+        """Find an active queue ticket for a patient phone number across all hospital departments."""
+        if not phone:
+            return None
+        cleaned = phone.strip()
+        return self.collection.find_one({
+            "patient_phone": cleaned,
+            "status": {"$in": [
+                QueueStatus.WAITING,
+                QueueStatus.CALLED,
+                QueueStatus.IN_CONSULTATION,
+                "waiting",
+                "called",
+                "in_consultation",
+            ]},
+        })
+
     def find_active_by_patient_and_dept(
         self, patient_id: str | ObjectId, dept_id: str | ObjectId
     ) -> Optional[dict[str, Any]]:

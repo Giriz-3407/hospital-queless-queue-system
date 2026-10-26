@@ -56,6 +56,27 @@ void main() {
       expect(dept.totalDoctorsCount, 3);
     });
 
+    test('DepartmentModel parses slug and qr_url properties for App Links', () {
+      final json = {
+        'id': 'dept456',
+        'name': 'Cardiology',
+        'code': 'CARD',
+        'slug': 'cardiology',
+        'qr_url': 'https://httpbin.org/anything/department/cardiology',
+        'is_active': true,
+      };
+
+      final dept = DepartmentModel.fromJson(json);
+
+      expect(dept.id, 'dept456');
+      expect(dept.name, 'Cardiology');
+      expect(dept.code, 'CARD');
+      expect(dept.slug, 'cardiology');
+      expect(dept.qrUrl, 'https://httpbin.org/anything/department/cardiology');
+      expect(dept.toJson()['slug'], 'cardiology');
+      expect(dept.toJson()['qr_url'], 'https://httpbin.org/anything/department/cardiology');
+    });
+
     test('QueueTicketModel parses live queue position and status flags', () {
       final json = {
         'id': 'ticket456',

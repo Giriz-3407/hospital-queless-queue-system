@@ -7,6 +7,7 @@ import '../../features/auth/presentation/welcome_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
+import '../../features/home/presentation/department_detail_screen.dart';
 import '../../features/home/presentation/departments_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/home/presentation/main_shell.dart';
@@ -29,18 +30,24 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isAuth = authState.isAuthenticated;
       final location = state.uri.path;
+      final isDepartmentRoute = location.startsWith('/department') || location.startsWith('/anything/department');
       final isPublicRoute = location == '/' ||
           location == '/welcome' ||
           location == '/login' ||
-          location == '/register';
+          location == '/register' ||
+          isDepartmentRoute;
 
       // Unauthenticated user trying to access protected screen
       if (!isAuth && !isPublicRoute) {
         return '/welcome';
       }
 
-      // Authenticated user trying to access public / auth screens
-      if (isAuth && isPublicRoute) {
+      // Authenticated user trying to access public auth screens
+      if (isAuth && (location == '/' || location == '/welcome' || location == '/login' || location == '/register')) {
+        final redirectParam = state.uri.queryParameters['redirect'];
+        if (redirectParam != null && redirectParam.isNotEmpty && redirectParam != '/login' && redirectParam != '/register') {
+          return redirectParam;
+        }
         return '/home';
       }
 
@@ -64,6 +71,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
+      ),
+
+      // Department QR Route Handlers (Standard and Test Redirect URLs)
+      GoRoute(
+        path: '/department/:slug',
+        builder: (context, state) {
+          final slug = state.pathParameters['slug'] ?? '';
+          return DepartmentDetailScreen(departmentSlug: slug);
+        },
+      ),
+      GoRoute(
+        path: '/anything/department/:slug',
+        builder: (context, state) {
+          final slug = state.pathParameters['slug'] ?? '';
+          return DepartmentDetailScreen(departmentSlug: slug);
+        },
       ),
 
       // Standalone Fullscreen Flow Routes

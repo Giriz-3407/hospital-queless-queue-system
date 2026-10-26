@@ -8,6 +8,7 @@ import { ProtectedRoute } from '../components/common/ProtectedRoute';
 import { HomePage } from '../pages/public/HomePage';
 import { LoginPage } from '../pages/public/LoginPage';
 import { RegisterPage } from '../pages/public/RegisterPage';
+import { DepartmentLandingPage } from '../pages/public/DepartmentLandingPage';
 import { NotFoundPage } from '../pages/public/NotFoundPage';
 
 // Patient pages
@@ -32,6 +33,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/department/:slug" element={<DepartmentLandingPage />} />
       </Route>
 
       {/* Patient Protected Routes */}

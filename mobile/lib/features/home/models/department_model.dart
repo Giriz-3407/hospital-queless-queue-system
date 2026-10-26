@@ -3,6 +3,8 @@ class DepartmentModel {
   final String id;
   final String name;
   final String code;
+  final String? slug;
+  final String? qrUrl;
   final String? description;
   final int avgConsultationTime;
   final bool isActive;
@@ -15,6 +17,8 @@ class DepartmentModel {
     required this.id,
     required this.name,
     required this.code,
+    this.slug,
+    this.qrUrl,
     this.description,
     this.avgConsultationTime = 15,
     this.isActive = true,
@@ -29,6 +33,8 @@ class DepartmentModel {
       id: json['id'] as String? ?? json['_id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       code: json['code'] as String? ?? '',
+      slug: json['slug'] as String?,
+      qrUrl: json['qr_url'] as String?,
       description: json['description'] as String?,
       avgConsultationTime: json['avg_consultation_time'] as int? ?? 15,
       isActive: json['is_active'] as bool? ?? true,
@@ -44,6 +50,8 @@ class DepartmentModel {
         'id': id,
         'name': name,
         'code': code,
+        'slug': slug,
+        'qr_url': qrUrl,
         'description': description,
         'avg_consultation_time': avgConsultationTime,
         'is_active': isActive,

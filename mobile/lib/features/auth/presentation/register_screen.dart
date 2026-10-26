@@ -44,6 +44,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               : _phoneController.text.trim(),
         );
 
+    final redirectParam =
+        GoRouterState.of(context).uri.queryParameters['redirect'];
+
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -53,7 +56,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           duration: Duration(seconds: 3),
         ),
       );
-      context.go('/home');
+      if (redirectParam != null && redirectParam.isNotEmpty) {
+        context.go(redirectParam);
+      } else {
+        context.go('/home');
+      }
     }
   }
 
@@ -289,7 +296,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         style: TextStyle(color: AppTheme.textSecondary),
                       ),
                       TextButton(
-                        onPressed: () => context.go('/login'),
+                        onPressed: () {
+                          final redirect = GoRouterState.of(context)
+                              .uri
+                              .queryParameters['redirect'];
+                          if (redirect != null && redirect.isNotEmpty) {
+                            context.go(
+                              '/login?redirect=${Uri.encodeComponent(redirect)}',
+                            );
+                          } else {
+                            context.go('/login');
+                          }
+                        },
                         child: const Text('Sign In'),
                       ),
                     ],

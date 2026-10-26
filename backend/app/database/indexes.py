@@ -49,7 +49,14 @@ def ensure_indexes(db: Database) -> dict[str, list[str]]:
             name="idx_departments_is_active",
             background=True,
         )
-        created_indexes["departments"] = [idx_dept_code, idx_dept_name, idx_dept_active]
+        idx_dept_slug = departments_coll.create_index(
+            [("slug", ASCENDING)],
+            unique=True,
+            sparse=True,
+            name="idx_departments_slug_unique",
+            background=True,
+        )
+        created_indexes["departments"] = [idx_dept_code, idx_dept_name, idx_dept_active, idx_dept_slug]
 
         # 3. Doctors collection indexes
         doctors_coll = db["doctors"]
@@ -98,6 +105,11 @@ def ensure_indexes(db: Database) -> dict[str, list[str]]:
             name="idx_queues_token_number",
             background=True,
         )
+        idx_q_phone = queues_coll.create_index(
+            [("patient_phone", ASCENDING), ("status", ASCENDING)],
+            name="idx_queues_patient_phone_status",
+            background=True,
+        )
         idx_q_patient_active_unique = queues_coll.create_index(
             [("patient_id", ASCENDING)],
             unique=True,
@@ -122,6 +134,7 @@ def ensure_indexes(db: Database) -> dict[str, list[str]]:
             idx_q_patient_status,
             idx_q_patient_created,
             idx_q_ticket,
+            idx_q_phone,
             idx_q_patient_active_unique,
         ]
 
