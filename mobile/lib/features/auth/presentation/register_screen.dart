@@ -36,6 +36,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final redirectParam =
+        GoRouterState.of(context).uri.queryParameters['redirect'];
+
     final success = await ref.read(authNotifierProvider.notifier).register(
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
@@ -44,9 +47,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ? null
               : _phoneController.text.trim(),
         );
-
-    final redirectParam =
-        GoRouterState.of(context).uri.queryParameters['redirect'];
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

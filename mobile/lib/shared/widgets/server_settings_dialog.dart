@@ -85,8 +85,10 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
       title: const Row(
         children: [
           Icon(Icons.dns_rounded, color: AppTheme.primary),
-          SizedBox(width: 8),
-          Text('Backend Server API'),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text('Backend Server API'),
+          ),
         ],
       ),
       content: SingleChildScrollView(

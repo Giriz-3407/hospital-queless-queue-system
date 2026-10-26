@@ -311,12 +311,14 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
                                       const Icon(Icons.info_outline,
                                           size: 18, color: AppTheme.primary),
                                       const SizedBox(width: 8),
-                                      Text(
-                                        'Department Summary: ${selectedDept.name}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: AppTheme.primaryDark,
+                                      Expanded(
+                                        child: Text(
+                                          'Department Summary: ${selectedDept.name}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: AppTheme.primaryDark,
+                                          ),
                                         ),
                                       ),
                                     ],

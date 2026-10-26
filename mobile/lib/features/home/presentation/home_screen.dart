@@ -181,12 +181,14 @@ class HomeScreen extends ConsumerWidget {
                                 Icon(Icons.info_outline,
                                     color: AppTheme.primary, size: 20),
                                 SizedBox(width: 8),
-                                Text(
-                                  'No Active Queue Ticket',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primaryDark,
+                                Expanded(
+                                  child: Text(
+                                    'No Active Queue Ticket',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primaryDark,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -392,26 +394,31 @@ class _ActiveTicketBanner extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ticket.departmentName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ticket.departmentName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    Text(
-                      'Department Code: ${ticket.departmentCode}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
+                      Text(
+                        'Department Code: ${ticket.departmentCode}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 StatusChip(status: ticket.status),
               ],
             ),
@@ -505,8 +512,10 @@ class _DepartmentTile extends StatelessWidget {
           title: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: AppTheme.waiting),
-              SizedBox(width: 8),
-              Text('Single Active Queue Policy'),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text('Active Queue Policy'),
+              ),
             ],
           ),
           content: Text(
@@ -604,14 +613,15 @@ class _DepartmentTile extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                Text(
-                  'Waiting: ${department.currentWaiting} patients',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
+                Expanded(
+                  child: Text(
+                    'Waiting: ${department.currentWaiting} patients',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
                   ),
                 ),
-                const Spacer(),
                 Text(
                   department.estimatedWaitMinutes != null
                       ? 'Est. Wait: ~${department.estimatedWaitMinutes} min'

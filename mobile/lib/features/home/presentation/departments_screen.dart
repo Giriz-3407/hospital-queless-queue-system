@@ -236,8 +236,10 @@ class _DepartmentCard extends StatelessWidget {
           title: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: AppTheme.waiting),
-              SizedBox(width: 8),
-              Text('Single Active Queue Policy'),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text('Active Queue Policy'),
+              ),
             ],
           ),
           content: Text(
@@ -429,11 +431,15 @@ class _MetricBadge extends StatelessWidget {
           children: [
             Icon(icon, size: 14, color: AppTheme.textSecondary),
             const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppTheme.textSecondary,
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

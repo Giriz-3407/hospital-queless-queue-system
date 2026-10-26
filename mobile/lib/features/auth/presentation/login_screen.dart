@@ -30,13 +30,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final redirectParam =
+        GoRouterState.of(context).uri.queryParameters['redirect'];
+
     final success = await ref.read(authNotifierProvider.notifier).login(
           _emailController.text.trim(),
           _passwordController.text,
         );
-
-    final redirectParam =
-        GoRouterState.of(context).uri.queryParameters['redirect'];
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

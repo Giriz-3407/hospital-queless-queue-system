@@ -507,12 +507,14 @@ class _QueueStatusScreenState extends ConsumerState<QueueStatusScreen>
                       const Icon(Icons.record_voice_over_outlined,
                           size: 18, color: AppTheme.accent),
                       const SizedBox(width: 8),
-                      Text(
-                        'Currently Called: ${ticket.currentlyCalledTicket ?? "None"}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
+                      Expanded(
+                        child: Text(
+                          'Currently Called: ${ticket.currentlyCalledTicket ?? "None"}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                          ),
                         ),
                       ),
                     ],
@@ -523,12 +525,14 @@ class _QueueStatusScreenState extends ConsumerState<QueueStatusScreen>
                       const Icon(Icons.medical_services_outlined,
                           size: 18, color: AppTheme.primary),
                       const SizedBox(width: 8),
-                      Text(
-                        'Currently Serving: ${ticket.currentlyServingTicket ?? "None"}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
+                      Expanded(
+                        child: Text(
+                          'Currently Serving: ${ticket.currentlyServingTicket ?? "None"}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                          ),
                         ),
                       ),
                     ],
