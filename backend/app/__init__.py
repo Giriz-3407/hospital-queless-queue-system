@@ -42,10 +42,18 @@ def create_app(config_class: Optional[Type[Config]] = None) -> Flask:
     frontend_origin_raw = app.config.get("FRONTEND_ORIGIN", "*")
     if not frontend_origin_raw or frontend_origin_raw.strip() == "*":
         allowed_origins: Any = "*"
-    elif "," in frontend_origin_raw:
-        allowed_origins = [o.strip() for o in frontend_origin_raw.split(",") if o.strip()]
     else:
-        allowed_origins = [frontend_origin_raw.strip()]
+        origins = []
+        for o in frontend_origin_raw.split(","):
+            cleaned = o.strip()
+            if cleaned:
+                # Add origin without trailing slash (browsers never send trailing slash in Origin header)
+                stripped = cleaned.rstrip("/")
+                origins.append(stripped)
+                origins.append(f"{stripped}/")
+        # Also allow localhost for development testing
+        origins.extend(["http://localhost:5173", "http://127.0.0.1:5173"])
+        allowed_origins = list(set(origins))
 
     cors.init_app(
         app,
