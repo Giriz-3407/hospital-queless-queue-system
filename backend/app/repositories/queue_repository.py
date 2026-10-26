@@ -24,6 +24,23 @@ class QueueRepository:
         oid = to_object_id(queue_id)
         return self.collection.find_one({"_id": oid})
 
+    def find_active_by_patient(
+        self, patient_id: str | ObjectId
+    ) -> Optional[dict[str, Any]]:
+        """Find an active queue ticket (WAITING, CALLED, IN_CONSULTATION) for a patient across all hospital departments."""
+        p_oid = to_object_id(patient_id)
+        return self.collection.find_one({
+            "patient_id": p_oid,
+            "status": {"$in": [
+                QueueStatus.WAITING,
+                QueueStatus.CALLED,
+                QueueStatus.IN_CONSULTATION,
+                "waiting",
+                "called",
+                "in_consultation",
+            ]},
+        })
+
     def find_active_by_patient_and_dept(
         self, patient_id: str | ObjectId, dept_id: str | ObjectId
     ) -> Optional[dict[str, Any]]:

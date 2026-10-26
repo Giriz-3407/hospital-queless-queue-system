@@ -96,6 +96,11 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
   @override
   Widget build(BuildContext context) {
     final departmentsAsync = ref.watch(departmentsProvider);
+    final myQueuesAsync = ref.watch(myQueuesProvider);
+
+    // Check if patient already holds an active queue ticket across the hospital
+    final activeTickets = myQueuesAsync.value?.where((t) => t.isActive).toList() ?? [];
+    final activeTicket = activeTickets.isNotEmpty ? activeTickets.first : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -129,9 +134,67 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
                     color: AppTheme.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
-                // Error Banner
+                // Policy Restriction Warning if Patient Already Has an Active Ticket
+                if (activeTicket != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.waiting.withAlpha(25),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.waiting, width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded,
+                                color: AppTheme.waiting, size: 26),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                'Active Queue Entry Exists',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'You already hold an active queue ticket (${activeTicket.tokenNumber}) in ${activeTicket.departmentName} with status "${activeTicket.status}".\n\n'
+                          'Hospital policy permits each patient at most ONE active queue entry across the entire hospital at any time. You may join a new queue only after your current entry reaches a completed or cancelled state.',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accent,
+                          ),
+                          icon: const Icon(Icons.confirmation_number_outlined,
+                              size: 18),
+                          label: Text(
+                            'View Active Ticket (${activeTicket.tokenNumber})',
+                          ),
+                          onPressed: () =>
+                              context.go('/queue/${activeTicket.id}'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // Backend Error Banner
                 if (_errorMessage != null) ...[
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -173,7 +236,7 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
                             ),
                             icon: const Icon(Icons.confirmation_number_outlined,
                                 size: 18),
-                            label: const Text('View Active Queue Ticket'),
+                            label: const Text('Open My Active Queue'),
                             onPressed: () => context.go('/queue'),
                           ),
                         ],
@@ -223,12 +286,14 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
                               child: Text('${d.name} (${d.code})'),
                             );
                           }).toList(),
-                          onChanged: (val) {
-                            setState(() {
-                              _selectedDepartmentId = val;
-                              _errorMessage = null;
-                            });
-                          },
+                          onChanged: activeTicket != null
+                              ? null
+                              : (val) {
+                                  setState(() {
+                                    _selectedDepartmentId = val;
+                                    _errorMessage = null;
+                                  });
+                                },
                         ),
                         const SizedBox(height: 16),
 
@@ -310,6 +375,7 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
                 // Reason for Visit (Optional)
                 TextFormField(
                   controller: _reasonController,
+                  enabled: activeTicket == null,
                   maxLines: 3,
                   textInputAction: TextInputAction.done,
                   decoration: const InputDecoration(
@@ -324,7 +390,7 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
                 ),
                 const SizedBox(height: 28),
 
-                // Submit Button
+                // Submit Button: Disabled if patient already holds active ticket
                 ElevatedButton.icon(
                   icon: _isSubmitting
                       ? const SizedBox(
@@ -335,17 +401,25 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Icon(Icons.check_circle_outline),
-                  label: Text(_isSubmitting
-                      ? 'Generating Token...'
-                      : 'Confirm & Join Queue'),
-                  onPressed: _isSubmitting ? null : _submit,
+                      : Icon(activeTicket != null
+                          ? Icons.block_rounded
+                          : Icons.check_circle_outline),
+                  label: Text(
+                    _isSubmitting
+                        ? 'Generating Token...'
+                        : (activeTicket != null
+                            ? 'Already in Active Queue'
+                            : 'Confirm & Join Queue'),
+                  ),
+                  onPressed: (_isSubmitting || activeTicket != null)
+                      ? null
+                      : _submit,
                 ),
                 const SizedBox(height: 12),
 
                 OutlinedButton(
                   onPressed: () => context.go('/home'),
-                  child: const Text('Cancel'),
+                  child: const Text('Back to Home'),
                 ),
               ],
             ),

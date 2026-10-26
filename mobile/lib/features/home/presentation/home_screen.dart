@@ -245,6 +245,11 @@ class HomeScreen extends ConsumerWidget {
               departmentsAsync.when(
                 data: (depts) {
                   final active = depts.where((d) => d.isActive).take(4).toList();
+                  final activeTickets =
+                      myQueuesAsync.value?.where((t) => t.isActive).toList() ?? [];
+                  final activeTicket =
+                      activeTickets.isNotEmpty ? activeTickets.first : null;
+
                   if (active.isEmpty) {
                     return const Center(
                       child: Padding(
@@ -261,8 +266,10 @@ class HomeScreen extends ConsumerWidget {
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: active.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (ctx, i) =>
-                        _DepartmentTile(department: active[i]),
+                    itemBuilder: (ctx, i) => _DepartmentTile(
+                      department: active[i],
+                      activeTicket: activeTicket,
+                    ),
                   );
                 },
                 loading: () => const LoadingIndicator(
@@ -483,8 +490,53 @@ class _ActiveTicketBanner extends StatelessWidget {
 
 class _DepartmentTile extends StatelessWidget {
   final DepartmentModel department;
+  final QueueTicketModel? activeTicket;
 
-  const _DepartmentTile({required this.department});
+  const _DepartmentTile({
+    required this.department,
+    this.activeTicket,
+  });
+
+  void _onJoinPressed(BuildContext context) {
+    if (activeTicket != null) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: AppTheme.waiting),
+              SizedBox(width: 8),
+              Text('Single Active Queue Policy'),
+            ],
+          ),
+          content: Text(
+            'You already hold active queue ticket ${activeTicket!.tokenNumber} in ${activeTicket!.departmentName}.\n\n'
+            'Hospital policy allows at most one active queue ticket across the hospital at any given time. '
+            'Would you like to open your active ticket tracker instead?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.confirmation_number_outlined, size: 18),
+              label: const Text('View Active Ticket'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.go('/queue/${activeTicket!.id}');
+              },
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    context.go(
+      '/queue/join?dept_id=${department.id}&dept_name=${Uri.encodeComponent(department.name)}',
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -536,12 +588,16 @@ class _DepartmentTile extends StatelessWidget {
                     minimumSize: const Size(90, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
-                  onPressed: () {
-                    context.go(
-                      '/queue/join?dept_id=${department.id}&dept_name=${Uri.encodeComponent(department.name)}',
-                    );
-                  },
-                  child: const Text('Join', style: TextStyle(fontSize: 13)),
+                  onPressed: () => _onJoinPressed(context),
+                  child: Text(
+                    activeTicket != null ? 'Active' : 'Join',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: activeTicket != null
+                          ? AppTheme.textSecondary
+                          : AppTheme.primary,
+                    ),
+                  ),
                 ),
               ],
             ),

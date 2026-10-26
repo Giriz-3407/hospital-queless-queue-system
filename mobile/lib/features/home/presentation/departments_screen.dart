@@ -4,10 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../queue/models/queue_ticket_model.dart';
 import '../models/department_model.dart';
 
 /// Screen listing all available hospital departments with real-time wait times
-/// and physician availability.
+/// and physician availability. Enforces single active queue per patient across hospital.
 class DepartmentsScreen extends ConsumerStatefulWidget {
   const DepartmentsScreen({super.key});
 
@@ -28,6 +29,11 @@ class _DepartmentsScreenState extends ConsumerState<DepartmentsScreen> {
   @override
   Widget build(BuildContext context) {
     final departmentsAsync = ref.watch(departmentsProvider);
+    final myQueuesAsync = ref.watch(myQueuesProvider);
+
+    final activeTickets =
+        myQueuesAsync.value?.where((t) => t.isActive).toList() ?? [];
+    final activeTicket = activeTickets.isNotEmpty ? activeTickets.first : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -36,21 +42,72 @@ class _DepartmentsScreenState extends ConsumerState<DepartmentsScreen> {
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh Departments',
-            onPressed: () => ref.invalidate(departmentsProvider),
+            onPressed: () {
+              ref.invalidate(departmentsProvider);
+              ref.invalidate(myQueuesProvider);
+            },
           ),
         ],
       ),
       body: Column(
         children: [
+          // Single Active Queue Policy Alert Banner (if active ticket exists)
+          if (activeTicket != null)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.waiting.withAlpha(25),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.waiting),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline,
+                      color: AppTheme.waiting, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Active Ticket: ${activeTicket.tokenNumber} (${activeTicket.departmentName})',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Hospital policy limits patients to 1 active queue at a time.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.go('/queue/${activeTicket.id}'),
+                    child: const Text('Track', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+
           // Search Bar
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
             child: TextField(
               controller: _searchController,
-              onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
+              onChanged: (val) =>
+                  setState(() => _searchQuery = val.trim().toLowerCase()),
               decoration: InputDecoration(
                 hintText: 'Search department or specialty...',
-                prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary),
+                prefixIcon:
+                    const Icon(Icons.search, color: AppTheme.textSecondary),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear, size: 20),
@@ -60,7 +117,8 @@ class _DepartmentsScreenState extends ConsumerState<DepartmentsScreen> {
                         },
                       )
                     : null,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
           ),
@@ -108,12 +166,18 @@ class _DepartmentsScreenState extends ConsumerState<DepartmentsScreen> {
                 }
 
                 return RefreshIndicator(
-                  onRefresh: () async => ref.invalidate(departmentsProvider),
+                  onRefresh: () async {
+                    ref.invalidate(departmentsProvider);
+                    ref.invalidate(myQueuesProvider);
+                  },
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: filtered.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 14),
-                    itemBuilder: (ctx, i) => _DepartmentCard(department: filtered[i]),
+                    itemBuilder: (ctx, i) => _DepartmentCard(
+                      department: filtered[i],
+                      activeTicket: activeTicket,
+                    ),
                   ),
                 );
               },
@@ -157,8 +221,53 @@ class _DepartmentsScreenState extends ConsumerState<DepartmentsScreen> {
 
 class _DepartmentCard extends StatelessWidget {
   final DepartmentModel department;
+  final QueueTicketModel? activeTicket;
 
-  const _DepartmentCard({required this.department});
+  const _DepartmentCard({
+    required this.department,
+    this.activeTicket,
+  });
+
+  void _handleJoinTapped(BuildContext context) {
+    if (activeTicket != null) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: AppTheme.waiting),
+              SizedBox(width: 8),
+              Text('Single Active Queue Policy'),
+            ],
+          ),
+          content: Text(
+            'You already hold an active queue ticket (${activeTicket!.tokenNumber}) in ${activeTicket!.departmentName}.\n\n'
+            'Each patient may have at most one active queue ticket across the entire hospital at any time. '
+            'Would you like to open your active ticket tracker instead?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.confirmation_number_outlined, size: 18),
+              label: const Text('View Active Ticket'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.go('/queue/${activeTicket!.id}');
+              },
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    context.go(
+      '/queue/join?dept_id=${department.id}&dept_name=${Uri.encodeComponent(department.name)}',
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -279,13 +388,17 @@ class _DepartmentCard extends StatelessWidget {
 
             // Join Queue Action
             ElevatedButton.icon(
-              icon: const Icon(Icons.add_circle_outline, size: 20),
-              label: const Text('Join This Queue'),
-              onPressed: () {
-                context.go(
-                  '/queue/join?dept_id=${department.id}&dept_name=${Uri.encodeComponent(department.name)}',
-                );
-              },
+              icon: Icon(activeTicket != null
+                  ? Icons.info_outline
+                  : Icons.add_circle_outline,
+                  size: 20),
+              label: Text(activeTicket != null
+                  ? 'Join Queue (Active Ticket Exists)'
+                  : 'Join This Queue'),
+              style: activeTicket != null
+                  ? ElevatedButton.styleFrom(backgroundColor: AppTheme.textSecondary)
+                  : null,
+              onPressed: () => _handleJoinTapped(context),
             ),
           ],
         ),

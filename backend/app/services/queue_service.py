@@ -3,6 +3,7 @@ import math
 from typing import Any, Optional
 from datetime import datetime, timezone
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 from app.repositories.queue_repository import queue_repository
 from app.repositories.department_repository import department_repository
 from app.repositories.doctor_repository import doctor_repository
@@ -32,12 +33,15 @@ class QueueService:
         dept_oid = dept["_id"]
         patient_oid = to_object_id(patient_id)
 
-        # Check for active existing ticket in this department
-        existing_active = queue_repository.find_active_by_patient_and_dept(patient_oid, dept_oid)
+        # Check for active existing ticket across ANY department in the hospital
+        existing_active = queue_repository.find_active_by_patient(patient_oid)
         if existing_active:
+            active_dept = existing_active.get("department_name") or "another department"
+            token = existing_active.get("token_number", "active ticket")
+            status = existing_active.get("status", "ACTIVE")
             raise ValueError(
-                f"You already hold an active queue ticket ({existing_active.get('token_number')}) "
-                f"in {dept.get('name')}."
+                f"You already hold an active queue ticket ({token}) in {active_dept} (status: {status}). "
+                "Hospital policy permits at most one active queue ticket per patient across all departments."
             )
 
         now = datetime.now(timezone.utc)
@@ -90,7 +94,17 @@ class QueueService:
             "updated_at": now,
         }
 
-        created = queue_repository.create(ticket_doc)
+        try:
+            created = queue_repository.create(ticket_doc)
+        except DuplicateKeyError:
+            # Concurrency safeguard: a simultaneous request created an active ticket for this patient
+            existing_active = queue_repository.find_active_by_patient(patient_oid)
+            active_dept = existing_active.get("department_name") if existing_active else "another department"
+            token = existing_active.get("token_number") if existing_active else "active ticket"
+            raise ValueError(
+                f"You already hold an active queue ticket ({token}) in {active_dept}. "
+                "Hospital policy permits at most one active queue ticket per patient across all departments."
+            )
 
         audit_repository.create_log(
             action="QUEUE_JOINED",

@@ -2,6 +2,7 @@ import logging
 from pymongo import ASCENDING, DESCENDING
 from pymongo.database import Database
 from pymongo.errors import PyMongoError
+from app.models.queue import QueueStatus
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,25 @@ def ensure_indexes(db: Database) -> dict[str, list[str]]:
         )
         idx_q_ticket = queues_coll.create_index(
             [("token_number", ASCENDING)],
-            name="idx_queues_ticket_number",
+            name="idx_queues_token_number",
+            background=True,
+        )
+        idx_q_patient_active_unique = queues_coll.create_index(
+            [("patient_id", ASCENDING)],
+            unique=True,
+            partialFilterExpression={
+                "status": {
+                    "$in": [
+                        QueueStatus.WAITING,
+                        QueueStatus.CALLED,
+                        QueueStatus.IN_CONSULTATION,
+                        "waiting",
+                        "called",
+                        "in_consultation",
+                    ]
+                }
+            },
+            name="idx_queues_patient_active_unique",
             background=True,
         )
         created_indexes["queues"] = [
@@ -103,6 +122,7 @@ def ensure_indexes(db: Database) -> dict[str, list[str]]:
             idx_q_patient_status,
             idx_q_patient_created,
             idx_q_ticket,
+            idx_q_patient_active_unique,
         ]
 
         # 5. Audit logs collection indexes
