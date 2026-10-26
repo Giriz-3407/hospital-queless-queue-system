@@ -14,9 +14,22 @@ class DepartmentCreateSchema(BaseModel):
     def normalize_code(cls, v: str) -> str:
         return v.upper().strip()
 
+    @field_validator("name")
+    @classmethod
+    def strip_name(cls, v: str) -> str:
+        return v.strip()
+
 
 class DepartmentUpdateSchema(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=100)
+    code: Optional[str] = Field(None, min_length=2, max_length=10)
     description: Optional[str] = Field(None, max_length=500)
     avg_consultation_time: Optional[int] = Field(None, ge=1, le=120)
     is_active: Optional[bool] = None
+
+    @field_validator("code")
+    @classmethod
+    def normalize_code(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            return v.upper().strip()
+        return v

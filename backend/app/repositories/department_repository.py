@@ -64,15 +64,39 @@ class DepartmentRepository:
     def find_by_code(self, code: str) -> Optional[dict[str, Any]]:
         return self.collection.find_one({"code": code.upper().strip()})
 
+    def find_by_name(self, name: str) -> Optional[dict[str, Any]]:
+        return self.collection.find_one({"name": {"$regex": f"^{name.strip()}$", "$options": "i"}})
+
     def create(self, dept_dict: dict[str, Any]) -> dict[str, Any]:
         now = datetime.now(timezone.utc)
         dept_dict.setdefault("created_at", now)
+        dept_dict.setdefault("updated_at", now)
         dept_dict["code"] = dept_dict["code"].upper().strip()
+        dept_dict["name"] = dept_dict["name"].strip()
         dept_dict.setdefault("is_active", True)
+        dept_dict.setdefault("avg_consultation_time", 15)
 
         result = self.collection.insert_one(dept_dict)
         dept_dict["_id"] = result.inserted_id
         return dept_dict
+
+    def update(self, dept_id: str | ObjectId, update_data: dict[str, Any]) -> Optional[dict[str, Any]]:
+        oid = to_object_id(dept_id)
+        update_data["updated_at"] = datetime.now(timezone.utc)
+        if "code" in update_data:
+            update_data["code"] = update_data["code"].upper().strip()
+        if "name" in update_data:
+            update_data["name"] = update_data["name"].strip()
+
+        return self.collection.find_one_and_update(
+            {"_id": oid},
+            {"$set": update_data},
+            return_document=True,
+        )
+
+    def count_departments(self, active_only: bool = False) -> int:
+        query = {"is_active": True} if active_only else {}
+        return self.collection.count_documents(query)
 
     def seed_defaults_if_empty(self) -> int:
         """Seed initial departments if none exist in the database."""
@@ -81,7 +105,7 @@ class DepartmentRepository:
             if count == 0:
                 logger.info("Departments collection is empty. Seeding %d initial departments...", len(DEFAULT_DEPARTMENTS))
                 now = datetime.now(timezone.utc)
-                docs = [{**dept, "created_at": now} for dept in DEFAULT_DEPARTMENTS]
+                docs = [{**dept, "created_at": now, "updated_at": now} for dept in DEFAULT_DEPARTMENTS]
                 res = self.collection.insert_many(docs)
                 return len(res.inserted_ids)
             return 0

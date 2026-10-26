@@ -23,6 +23,7 @@ class UserRepository:
         user_dict.setdefault("created_at", now)
         user_dict.setdefault("updated_at", now)
         user_dict["email"] = user_dict["email"].lower().strip()
+        user_dict.setdefault("is_active", True)
 
         result = self.collection.insert_one(user_dict)
         user_dict["_id"] = result.inserted_id
@@ -41,6 +42,10 @@ class UserRepository:
         query = {"role": role} if role else {}
         cursor = self.collection.find(query).skip(skip).limit(limit).sort("created_at", -1)
         return list(cursor)
+
+    def count_users(self, role: Optional[str] = None) -> int:
+        query = {"role": role} if role else {}
+        return self.collection.count_documents(query)
 
 
 user_repository = UserRepository()

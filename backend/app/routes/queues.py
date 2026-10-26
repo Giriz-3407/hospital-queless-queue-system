@@ -12,14 +12,19 @@ queues_bp = Blueprint("queues", __name__)
 @roles_required("doctor", "staff", "admin")
 def list_queues():
     """
-    List queue tickets for doctors and hospital staff.
+    List queue tickets for doctors, staff, and admin.
     Supports query parameters: department_id and status.
     """
     department_id = request.args.get("department_id")
     status = request.args.get("status")
-    tickets = queue_service.list_queues_for_staff(department_id=department_id, status=status)
+    result = queue_service.list_queues_admin(
+        department_id=department_id,
+        status=status,
+        limit=int(request.args.get("limit", 50)),
+        skip=int(request.args.get("skip", 0)),
+    )
     return api_response(
-        data=tickets,
+        data=result["queues"],
         message="Queues retrieved successfully.",
         status_code=200,
     )
@@ -30,7 +35,7 @@ def list_queues():
 def join_queue():
     """
     Allow an authenticated patient to join a virtual queue.
-    Automatically assigns next ticket number and calculates queue position and wait time.
+    Automatically assigns daily ticket number and calculates queue position and wait time.
     """
     json_data = request.get_json(silent=True) or {}
     validated = JoinQueueSchema(**json_data)
@@ -71,7 +76,7 @@ def get_my_queues():
 def get_queue_by_id(queue_id: str):
     """
     Retrieve specific queue details.
-    Enforces authorization: Patients can only view their own ticket; staff can view any.
+    Enforces authorization: Patients can only view their own ticket; staff/doctors/admins can view any.
     """
     current_user = request.current_user
     ticket = queue_service.get_queue_by_id(queue_id=queue_id, current_user=current_user)
@@ -94,30 +99,5 @@ def cancel_queue(queue_id: str):
     return api_response(
         data=cancelled,
         message="Queue ticket cancelled successfully.",
-        status_code=200,
-    )
-
-
-@queues_bp.route("/queues/<queue_id>/status", methods=["PATCH"])
-@jwt_required
-@roles_required("doctor", "staff", "admin")
-def update_queue_status(queue_id: str):
-    """
-    Update ticket status (in_consultation, completed, cancelled, no_show).
-    Restricted to doctor, staff, and admin roles.
-    """
-    json_data = request.get_json(silent=True) or {}
-    validated = QueueStatusUpdateSchema(**json_data)
-    current_user = request.current_user
-
-    updated = queue_service.update_queue_status_for_staff(
-        queue_id=queue_id,
-        new_status=validated.status,
-        notes=validated.notes,
-        staff_user=current_user,
-    )
-    return api_response(
-        data=updated,
-        message=f"Queue status updated to '{validated.status}'.",
         status_code=200,
     )

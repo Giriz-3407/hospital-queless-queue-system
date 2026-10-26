@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { storage } from '../../utils/storage';
 import { Card, CardContent, CardFooter } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
-import { Activity, KeyRound, UserCheck, Stethoscope } from 'lucide-react';
+import { Activity, KeyRound, UserCheck, Stethoscope, ShieldCheck } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -17,7 +18,7 @@ export const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const from = (location.state as any)?.from?.pathname || '/patient/dashboard';
+  const from = (location.state as any)?.from?.pathname;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,8 +27,16 @@ export const LoginPage: React.FC = () => {
 
     try {
       await login({ email, password });
-      // If logging in as staff/doctor, navigate to staff dashboard
-      navigate(from, { replace: true });
+      const user = storage.getUser();
+      if (from && from !== '/login') {
+        navigate(from, { replace: true });
+      } else if (user?.role === 'admin') {
+        navigate('/admin/dashboard', { replace: true });
+      } else if (user?.role === 'doctor') {
+        navigate('/doctor/dashboard', { replace: true });
+      } else {
+        navigate('/patient/dashboard', { replace: true });
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to authenticate. Please check your credentials.');
     } finally {
@@ -36,13 +45,18 @@ export const LoginPage: React.FC = () => {
   };
 
   const fillDemoPatient = () => {
-    setEmail('patient@hospital.org');
-    setPassword('Patient123!');
+    setEmail('alice@example.com');
+    setPassword('PatientPass123!');
   };
 
   const fillDemoDoctor = () => {
     setEmail('dr.smith@hospital.org');
-    setPassword('Doctor123!');
+    setPassword('DoctorPass123!');
+  };
+
+  const fillDemoAdmin = () => {
+    setEmail('admin@hospital.org');
+    setPassword('AdminPass123!');
   };
 
   return (
@@ -53,7 +67,7 @@ export const LoginPage: React.FC = () => {
             <Activity className="w-7 h-7" />
           </div>
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Sign In to Queueless</h2>
-          <p className="text-sm text-slate-500">Access your virtual queue tickets or staff dashboard</p>
+          <p className="text-sm text-slate-500">Access your live patient queues, doctor console, or admin portal</p>
         </div>
 
         {/* Demo Fast-Fill Helper */}
@@ -61,20 +75,27 @@ export const LoginPage: React.FC = () => {
           <span className="font-semibold text-sky-900 flex items-center gap-1">
             <KeyRound className="w-3.5 h-3.5" /> Quick Fill Demo Credentials:
           </span>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             <button
               type="button"
               onClick={fillDemoPatient}
-              className="flex-1 py-1.5 px-2 bg-white border border-sky-200 rounded-md text-sky-700 font-medium hover:bg-sky-100/50 flex items-center justify-center gap-1 transition-colors"
+              className="py-1 px-2 bg-white border border-sky-200 rounded-md text-sky-700 font-medium hover:bg-sky-100/50 flex items-center justify-center gap-1 transition-colors text-[11px]"
             >
-              <UserCheck className="w-3.5 h-3.5" /> Patient
+              <UserCheck className="w-3 h-3" /> Patient
             </button>
             <button
               type="button"
               onClick={fillDemoDoctor}
-              className="flex-1 py-1.5 px-2 bg-white border border-sky-200 rounded-md text-sky-700 font-medium hover:bg-sky-100/50 flex items-center justify-center gap-1 transition-colors"
+              className="py-1 px-2 bg-white border border-sky-200 rounded-md text-sky-700 font-medium hover:bg-sky-100/50 flex items-center justify-center gap-1 transition-colors text-[11px]"
             >
-              <Stethoscope className="w-3.5 h-3.5" /> Doctor/Staff
+              <Stethoscope className="w-3 h-3" /> Doctor
+            </button>
+            <button
+              type="button"
+              onClick={fillDemoAdmin}
+              className="py-1 px-2 bg-white border border-sky-200 rounded-md text-sky-700 font-medium hover:bg-sky-100/50 flex items-center justify-center gap-1 transition-colors text-[11px]"
+            >
+              <ShieldCheck className="w-3 h-3" /> Admin
             </button>
           </div>
         </div>

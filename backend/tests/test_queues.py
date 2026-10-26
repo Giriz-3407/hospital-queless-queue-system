@@ -16,7 +16,7 @@ def test_join_and_manage_queue_flow(client, auth_headers):
     assert join_data["success"] is True
     ticket = join_data["data"]
     ticket_id = ticket["id"]
-    assert ticket["status"] == "waiting"
+    assert ticket["status"].upper() == "WAITING"
     assert ticket["position"] >= 1
     assert "ticket_number" in ticket
 
@@ -35,12 +35,71 @@ def test_join_and_manage_queue_flow(client, auth_headers):
     # 5. Cancel ticket
     cancel_res = client.post(f"/api/v1/queues/{ticket_id}/cancel", headers=auth_headers)
     assert cancel_res.status_code == 200
-    assert cancel_res.get_json()["data"]["status"] == "cancelled"
+    assert cancel_res.get_json()["data"]["status"].upper() == "CANCELLED"
+
+
+def test_duplicate_queue_join_prevention(client, auth_headers):
+    """Test that a patient cannot join the same department queue multiple times actively."""
+    dept_res = client.get("/api/v1/departments")
+    dept_id = dept_res.get_json()["data"][0]["id"]
+
+    # First join: success
+    res1 = client.post(
+        "/api/v1/queues/join",
+        json={"department_id": dept_id, "reason": "First visit"},
+        headers=auth_headers,
+    )
+    assert res1.status_code == 201
+
+    # Second join in same department: rejected (400)
+    res2 = client.post(
+        "/api/v1/queues/join",
+        json={"department_id": dept_id, "reason": "Second visit duplicate"},
+        headers=auth_headers,
+    )
+    assert res2.status_code == 400
+    data = res2.get_json()
+    assert data["success"] is False
+    assert "already hold an active queue ticket" in data["error"]["message"]
+
+
+def test_queue_position_and_ahead_calculation(client, auth_headers):
+    """Test sequential token numbering and accurate queue positions for multiple patients."""
+    dept_res = client.get("/api/v1/departments")
+    dept_id = dept_res.get_json()["data"][0]["id"]
+
+    # Register Patient 1 (via auth_headers)
+    t1_res = client.post(
+        "/api/v1/queues/join",
+        json={"department_id": dept_id, "reason": "Patient 1"},
+        headers=auth_headers,
+    )
+    t1 = t1_res.get_json()["data"]
+    assert t1["live_position"] == 1
+    assert t1["patients_ahead"] == 0
+
+    # Register Patient 2
+    reg2 = client.post(
+        "/api/v1/auth/register",
+        json={"name": "Patient 2", "email": "p2@example.com", "password": "Password123!"},
+    )
+    token2 = reg2.get_json()["data"]["token"]
+    h2 = {"Authorization": f"Bearer {token2}"}
+
+    t2_res = client.post(
+        "/api/v1/queues/join",
+        json={"department_id": dept_id, "reason": "Patient 2"},
+        headers=h2,
+    )
+    t2 = t2_res.get_json()["data"]
+    assert t2["live_position"] == 2
+    assert t2["patients_ahead"] == 1
+    # Check sequential tokens
+    assert t1["token_number"] != t2["token_number"]
 
 
 def test_queue_isolation_between_patients(client, auth_headers):
     """Verify that patient B cannot view or cancel patient A's queue ticket."""
-    # Patient A creates a ticket
     dept_res = client.get("/api/v1/departments")
     dept_id = dept_res.get_json()["data"][0]["id"]
 

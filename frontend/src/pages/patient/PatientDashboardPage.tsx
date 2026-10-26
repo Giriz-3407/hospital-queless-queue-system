@@ -14,6 +14,7 @@ import {
   XCircle,
   RefreshCw,
   Ticket,
+  UserCheck,
 } from 'lucide-react';
 
 export const PatientDashboardPage: React.FC = () => {
@@ -36,9 +37,13 @@ export const PatientDashboardPage: React.FC = () => {
     }
   };
 
-  const pastTickets = queues.filter(
-    (q) => q.status === 'completed' || q.status === 'cancelled' || q.status === 'no_show'
-  );
+  const pastTickets = queues.filter((q) => {
+    const s = (q.status || '').toUpperCase();
+    return s === 'COMPLETED' || s === 'CANCELLED' || s === 'NO_SHOW';
+  });
+
+  const activeStatusUpper = (activeTicket?.status || '').toUpperCase();
+  const patientsAhead = activeTicket?.patients_ahead ?? (activeTicket?.live_position ? Math.max(0, activeTicket.live_position - 1) : 0);
 
   return (
     <div className="space-y-8">
@@ -67,7 +72,7 @@ export const PatientDashboardPage: React.FC = () => {
 
       {/* Active Ticket Card (Hero) */}
       {activeTicket ? (
-        <Card className="border-sky-200 bg-gradient-to-br from-white to-sky-50/50 shadow-md">
+        <Card className="border-sky-300 bg-gradient-to-br from-white to-sky-50/50 shadow-md">
           <CardHeader className="flex flex-row items-center justify-between border-sky-100">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
@@ -75,7 +80,7 @@ export const PatientDashboardPage: React.FC = () => {
                 Active Live Queue Ticket
               </span>
             </div>
-            <StatusBadge status={activeTicket.status} />
+            <StatusBadge status={activeTicket.status} size="md" />
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -85,9 +90,14 @@ export const PatientDashboardPage: React.FC = () => {
                 <span className="text-xs text-slate-500 font-medium">Ticket Number</span>
                 <div className="text-4xl font-black text-sky-700 tracking-tight flex items-center gap-2">
                   <Ticket className="w-8 h-8 text-sky-500" />
-                  {activeTicket.ticket_number}
+                  {activeTicket.token_number || activeTicket.ticket_number}
                 </div>
                 <p className="text-sm font-semibold text-slate-800">{activeTicket.department_name}</p>
+                {activeTicket.doctor_name && (
+                  <p className="text-xs font-medium text-sky-600 flex items-center gap-1">
+                    <UserCheck className="w-3.5 h-3.5" /> Doctor: {activeTicket.doctor_name}
+                  </p>
+                )}
                 {activeTicket.reason && (
                   <p className="text-xs text-slate-500 italic">"{activeTicket.reason}"</p>
                 )}
@@ -97,14 +107,24 @@ export const PatientDashboardPage: React.FC = () => {
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center space-y-1">
                 <span className="text-xs text-slate-500 font-medium">Your Position</span>
                 <div className="text-3xl font-extrabold text-slate-900">
-                  {activeTicket.live_position > 0 ? getOrdinalSuffix(activeTicket.live_position) : 'Serving Now'}
+                  {activeStatusUpper === 'CALLED' ? (
+                    <span className="text-sky-600 text-2xl font-bold animate-pulse">Called!</span>
+                  ) : activeStatusUpper === 'IN_CONSULTATION' ? (
+                    <span className="text-indigo-600 text-2xl font-bold">In Room</span>
+                  ) : activeTicket.live_position > 0 ? (
+                    getOrdinalSuffix(activeTicket.live_position)
+                  ) : (
+                    'Next'
+                  )}
                 </div>
                 <p className="text-xs text-slate-500">
-                  {activeTicket.live_position > 1
-                    ? `${activeTicket.live_position - 1} patient(s) ahead of you`
-                    : activeTicket.live_position === 1
-                    ? 'You are next in line!'
-                    : 'Please enter the consultation room'}
+                  {activeStatusUpper === 'CALLED'
+                    ? 'Please proceed to the consultation room!'
+                    : activeStatusUpper === 'IN_CONSULTATION'
+                    ? 'Your consultation is in progress'
+                    : patientsAhead > 0
+                    ? `${patientsAhead} patient(s) ahead of you`
+                    : 'You are next in line!'}
                 </p>
               </div>
 
@@ -119,16 +139,16 @@ export const PatientDashboardPage: React.FC = () => {
                 <p className="text-xs text-slate-500">
                   Currently Serving:{' '}
                   <strong className="text-slate-800">
-                    {activeTicket.currently_serving_ticket || 'None'}
+                    {activeTicket.currently_called_ticket || activeTicket.currently_serving_ticket || 'None'}
                   </strong>
                 </p>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-sky-100 text-xs text-slate-500">
-              <span>Joined at: {formatDateTime(activeTicket.created_at)}</span>
+              <span>Joined at: {formatDateTime(activeTicket.joined_at || activeTicket.created_at)}</span>
 
-              {activeTicket.status === 'waiting' && (
+              {activeStatusUpper === 'WAITING' && (
                 <Button
                   variant="danger"
                   size="sm"
@@ -165,7 +185,7 @@ export const PatientDashboardPage: React.FC = () => {
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-slate-900">Your Queue History</h2>
         {pastTickets.length === 0 ? (
-          <p className="text-sm text-slate-500">No previous queue history found.</p>
+          <p className="text-sm text-slate-500">No previous queue visits found.</p>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
             <div className="divide-y divide-slate-100">
@@ -173,7 +193,9 @@ export const PatientDashboardPage: React.FC = () => {
                 <div key={ticket.id} className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-slate-900">{ticket.ticket_number}</span>
+                      <span className="font-bold text-sm text-slate-900">
+                        {ticket.token_number || ticket.ticket_number}
+                      </span>
                       <span className="text-xs text-slate-500">&bull; {ticket.department_name}</span>
                     </div>
                     <p className="text-xs text-slate-400">Date: {formatDateTime(ticket.created_at)}</p>

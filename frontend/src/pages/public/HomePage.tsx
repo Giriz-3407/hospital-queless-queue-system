@@ -5,7 +5,7 @@ import { departmentService } from '../../services/departmentService';
 import { formatWaitTime } from '../../utils/formatters';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Clock, Users, ArrowRight, Activity, CheckCircle, Sparkles } from 'lucide-react';
+import { Clock, Users, ArrowRight, Activity, CheckCircle, Sparkles, Stethoscope } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -32,8 +32,8 @@ export const HomePage: React.FC = () => {
         </h1>
 
         <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto font-normal">
-          Join hospital queues from your phone or home, track your position in real time,
-          and arrive just when the doctor is ready to see you.
+          Join hospital queues from your phone or home, track your turn position in real time,
+          and arrive just when the attending doctor is ready to consult.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
@@ -42,9 +42,9 @@ export const HomePage: React.FC = () => {
               Join Virtual Queue Now <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>
-          <Link to="/staff/dashboard">
+          <Link to="/login">
             <Button variant="outline" size="lg" className="gap-2 w-full sm:w-auto">
-              <Users className="w-4 h-4" /> Hospital Staff Portal
+              <Stethoscope className="w-4 h-4" /> Portal Sign In
             </Button>
           </Link>
         </div>
@@ -59,7 +59,7 @@ export const HomePage: React.FC = () => {
             </div>
             <h3 className="text-lg font-bold text-slate-900">Real-Time Queue Tracking</h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              Live estimated wait times and dynamic position recalculation ensure you are always informed.
+              Live estimated wait times and dynamic position updates recalculate as doctors complete consultations.
             </p>
           </div>
 
@@ -69,7 +69,7 @@ export const HomePage: React.FC = () => {
             </div>
             <h3 className="text-lg font-bold text-slate-900">Fair & Transparent FIFO</h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              First-in, first-out automated queue ordering with unique sequential department tickets.
+              Deterministic first-in, first-out queue ordering with atomic sequential daily department tickets.
             </p>
           </div>
 
@@ -77,9 +77,9 @@ export const HomePage: React.FC = () => {
             <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
               <Activity className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">Doctor & Staff Control</h3>
+            <h3 className="text-lg font-bold text-slate-900">Doctor & Admin Controls</h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              Medical staff easily manage patient calls, consultations, and no-shows from a unified dashboard.
+              Attending physicians easily call next patients and manage consultations; administrators manage departments and doctors.
             </p>
           </div>
         </div>
@@ -131,7 +131,7 @@ export const HomePage: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{formatWaitTime(dept.estimated_wait_minutes ?? 0)}</span>
+                      <span>{formatWaitTime(dept.estimated_wait_minutes)}</span>
                     </div>
                   </div>
                 </CardContent>

@@ -1,87 +1,59 @@
-# Architecture Specification
+# System Architecture Specification
 
 ## Queueless Smart Hospital Queue Management System
 
-### 1. High-Level System Architecture
+### 1. High-Level Architecture Overview
 
-The Queueless Smart Hospital system is built following a modular, clean, three-tier architecture that decouples the frontend client, backend application logic, and database persistence layer.
+The Queueless Smart Hospital system is built as a three-tier, decoupled architecture comprising a TypeScript React client, an authenticated Python Flask REST API backend, and a high-performance indexed MongoDB persistence layer.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       Client Layer                          │
-│  React 18 + TypeScript + Vite + Tailwind CSS + Lucide       │
-│  (Patient Queue Tracking, Staff Consultation Management)   │
-└──────────────────────────────┬──────────────────────────────┘
-                               │  REST API (JSON / HTTP)
-                               │  JWT Bearer Authentication
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Backend Application Layer                │
-│                   Flask (Python 3.10+ / 3.14)               │
-│                                                             │
-│   ┌─────────────────────────────────────────────────────┐   │
-│   │ Routes & Blueprints (/api/v1/auth, queues, etc.)    │   │
-│   └──────────────────────────┬──────────────────────────┘   │
-│                              │                              │
-│   ┌──────────────────────────▼──────────────────────────┐   │
-│   │ Middleware (JWT Verification, Role-Based Access)    │   │
-│   └──────────────────────────┬──────────────────────────┘   │
-│                              │                              │
-│   ┌──────────────────────────▼──────────────────────────┐   │
-│   │ Validation Layer (Pydantic Schemas)                 │   │
-│   └──────────────────────────┬──────────────────────────┘   │
-│                              │                              │
-│   ┌──────────────────────────▼──────────────────────────┐   │
-│   │ Service Layer (Business Logic & Queue Engine)       │   │
-│   └──────────────────────────┬──────────────────────────┘   │
-│                              │                              │
-│   ┌──────────────────────────▼──────────────────────────┐   │
-│   │ Repository Layer (Data Access & Projections)        │   │
-│   └──────────────────────────┬──────────────────────────┘   │
-└──────────────────────────────┼──────────────────────────────┘
-                               │  PyMongo Driver
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       Database Layer                        │
-│         MongoDB (Local Standalone or MongoDB Atlas)         │
-│  Collections: users, departments, queues (Indexed)          │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                          Client Layer                           │
+│        React 18 + TypeScript + Vite + Tailwind CSS + Lucide     │
+│   (Patient Dashboard, Doctor Console, Admin Control Portal)     │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │  REST API (JSON / HTTP)
+                                 │  JWT Bearer Authentication
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Backend Application Layer                    │
+│                   Flask (Python 3.10+ / 3.14)                   │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │ Routes & Blueprints (/api/v1/auth, queues, doctor, admin)│   │
+│   └────────────────────────────┬────────────────────────────┘   │
+│                                │                                │
+│   ┌────────────────────────────▼────────────────────────────┐   │
+│   │ Middleware (JWT Verification, Role-Based Access Decs)   │   │
+│   └────────────────────────────┬────────────────────────────┘   │
+│                                │                                │
+│   ┌────────────────────────────▼────────────────────────────┐   │
+│   │ Validation Layer (Pydantic v2 Models)                   │   │
+│   └────────────────────────────┬────────────────────────────┘   │
+│                                │                                │
+│   ┌────────────────────────────▼────────────────────────────┐   │
+│   │ Service Layer (Queue Engine, FIFO ordering, Wait Est)   │   │
+│   └────────────────────────────┬────────────────────────────┘   │
+│                                │                                │
+│   ┌────────────────────────────▼────────────────────────────┐   │
+│   │ Repository Layer (Atomic Operations & Data Access)      │   │
+│   └────────────────────────────┬────────────────────────────┘   │
+└────────────────────────────────┼────────────────────────────────┘
+                                 │  PyMongo Driver
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         Database Layer                          │
+│          MongoDB (Local Standalone or MongoDB Atlas M0)         │
+│  Collections: users, departments, doctors, queues, counters,    │
+│               audit_logs (Compound & Unique Indexes)           │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 2. Separation of Concerns & Layer Responsibilities
+### 2. Virtual Queue State Machine
 
-1. **Routes Layer (`backend/app/routes/`)**
-   - Implements modular Flask Blueprints registered with `/api/v1`.
-   - Responsible strictly for HTTP protocol concerns: extracting route parameters, request payloads, query strings, and generating HTTP responses using standardized JSON response envelopes.
-
-2. **Middleware & Security Layer (`backend/app/middleware/`)**
-   - `@jwt_required`: Decodes and validates cryptographic signatures and expiration of JWT tokens. Attaches claims to `request.current_user`.
-   - `@roles_required(*roles)`: Enforces role-based permissions (`patient`, `doctor`, `staff`, `admin`).
-   - `register_error_handlers`: Intercepts validation errors, database timeouts, and HTTP errors to produce clean, safe JSON error payloads without leaking stack traces or credentials.
-
-3. **Validation Layer (`backend/app/schemas/`)**
-   - Uses Pydantic v2 schemas (`UserRegisterSchema`, `JoinQueueSchema`, `QueueStatusUpdateSchema`, etc.) to enforce strict typing, sanitize string inputs, validate email formats, and verify valid MongoDB ObjectId hex representations before passing data to the service layer.
-
-4. **Service Layer (`backend/app/services/`)**
-   - Encapsulates hospital business logic and domain workflows.
-   - Computes dynamic queue positions, estimates waiting times, coordinates user sessions, and verifies patient ownership rules.
-   - Prevents patients from holding multiple concurrent active tickets in the same clinic.
-
-5. **Repository Layer (`backend/app/repositories/`)**
-   - Handles low-level MongoDB queries using PyMongo.
-   - Manages document conversion, timestamps (`created_at`, `updated_at`), sequential ticket generation (`CARD-001`, `GEN-002`), and collection aggregations.
-
-6. **Database Connection Manager (`backend/app/database/connection.py`)**
-   - Lazy connection pool with health ping capabilities and automatic reconnection handling.
-   - Gracefully handles disconnected database states without terminating the web application, enabling the health check endpoint to report service degradation.
-
----
-
-### 3. Virtual Queue State Machine
-
-Each patient queue ticket transitions through deterministic states:
+Queue entries transition through well-defined, server-validated states:
 
 ```
                   ┌──────────────┐
@@ -90,94 +62,88 @@ Each patient queue ticket transitions through deterministic states:
                   └──────┬───────┘
                          │
                          ▼
-                  ┌──────────────┐      Patient / Staff
-                  │   WAITING    ├───────────────────────► CANCELLED
+                  ┌──────────────┐      Patient cancels
+                  │   WAITING    ├───────────────────────► [ CANCELLED ]
                   └──────┬───────┘
                          │
            Doctor calls  │
            patient next  ▼
                   ┌──────────────┐      Patient fails
-                  │      IN      ├──────to show up───────► NO_SHOW
+                  │    CALLED    ├──────to show up───────► [ NO_SHOW ]
+                  └──────┬───────┘
+                         │
+     Doctor starts       │
+     consultation        ▼
+                  ┌──────────────┐
+                  │      IN      │
                   │ CONSULTATION │
                   └──────┬───────┘
                          │
-     Doctor finishes     │
-       consultation      ▼
+     Doctor completes    │
+     consultation        ▼
                   ┌──────────────┐
                   │  COMPLETED   │
                   └──────────────┘
 ```
 
-#### Real-Time Position & Wait Calculation Algorithm:
-- When a patient checks their ticket:
-  1. The system counts how many tickets in the same department are in status `"waiting"` with a creation timestamp prior to the current ticket (`count_waiting_before`).
-  2. `live_position = count_waiting_before + 1`.
-  3. `live_estimated_wait_minutes = live_position * department.avg_consultation_time`.
-  4. The system identifies the ticket currently marked `"in_consultation"` for that department and surfaces its ticket number (`currently_serving_ticket`).
+#### State Transition Constraints:
+1. `WAITING` -> `CALLED`: Triggered only by a doctor assigned to the ticket's department.
+2. `WAITING` -> `CANCELLED`: Triggered by the owning patient or administrator.
+3. `CALLED` -> `IN_CONSULTATION`: Triggered when the called patient arrives in the consultation room.
+4. `CALLED` -> `NO_SHOW`: Triggered when patient fails to present after being summoned.
+5. `IN_CONSULTATION` -> `COMPLETED`: Triggered upon consultation conclusion with optional diagnosis notes.
+6. Terminal states (`COMPLETED`, `CANCELLED`, `NO_SHOW`) are immutable and excluded from active queues.
 
 ---
 
-### 4. Data Security & Access Control
+### 3. Queue Calculations & Concurrency Protection
 
-1. **Password Hashing**: Passwords are never stored in plaintext. They are hashed using `werkzeug.security.generate_password_hash` utilizing modern algorithms (`scrypt` / `pbkdf2:sha256`) with unique per-password salts.
-2. **JWT Authentication**: Tokens are signed using HMAC-SHA256 with a dedicated `JWT_SECRET_KEY` and enforce expiration timestamps (`exp`).
-3. **Queue Data Isolation**:
-   - Patients can only view or cancel queue tickets associated with their authenticated `user_id` (`sub` claim).
-   - Any attempt by Patient A to query or cancel Patient B's ticket ID triggers a `403 Forbidden` response and an audit log event.
-   - Doctors, hospital staff, and administrators are permitted to view and manage queues across all departments.
-4. **CORS Restrictions**: Flask-CORS is strictly configured to only accept cross-origin requests from the designated frontend host (`FRONTEND_ORIGIN`).
+#### A. Concurrency-Safe Daily Token Allocation
+- Daily tokens reset every UTC calendar day per department (e.g. `CARD-001`, `GEN-001`).
+- Atomic allocation is implemented using MongoDB `find_one_and_update` on a `counters` collection with `$inc`:
+  ```python
+  counter_doc = db.counters.find_one_and_update(
+      {"_id": f"{dept_id}_{queue_date}"},
+      {"$inc": {"seq": 1}},
+      upsert=True,
+      return_document=ReturnDocument.AFTER
+  )
+  ```
+  This eliminates duplicate token allocation even under heavy concurrent traffic.
+
+#### B. Queue Position Semantics
+- For a waiting ticket:
+  - `patients_ahead` = count of active `WAITING` tickets in the department joined prior to current ticket on current date.
+  - `live_position` = `patients_ahead + 1` (position 1 = next eligible patient).
+- For `CALLED` and `IN_CONSULTATION` tickets:
+  - `live_position` = 0, `patients_ahead` = 0.
+
+#### C. Waiting-Time Estimation Formula
+$$\text{estimated\_wait\_minutes} = \left\lceil \frac{\text{patients\_ahead} \times \text{avg\_consultation\_time}}{\text{effective\_available\_doctors}} \right\rceil$$
+
+- `effective_available_doctors` is dynamically queried from the `doctors` collection (`is_available: true`).
+- If no doctors are currently available on duty, the backend returns `null` ("Estimate unavailable") rather than presenting a misleading 0-minute wait.
 
 ---
 
-### 5. MongoDB Database Schema & Index Strategy
+### 4. Database Schema & Index Definitions
 
 #### Collections:
+1. **`users`**: Authentication credentials, roles (`patient`, `doctor`, `admin`), active status.
+2. **`departments`**: Name, code, description, average consultation duration, active status.
+3. **`doctors`**: Link between `user_id` and `department_id`, display name, availability toggle.
+4. **`queues`**: Token number, queue date, status, joined/called/completed timestamps, estimated wait time.
+5. **`counters`**: Atomic sequence counters for daily department token generation.
+6. **`audit_logs`**: Timestamped immutable security and activity log (actor, action, entity, metadata).
 
-1. **`users`**
-   - `_id`: ObjectId
-   - `email`: String (Unique, Indexed)
-   - `password_hash`: String
-   - `name`: String
-   - `role`: String (`patient`, `doctor`, `staff`, `admin`) (Indexed)
-   - `phone`: String (Optional)
-   - `created_at`: Date
-   - `updated_at`: Date
-
-2. **`departments`**
-   - `_id`: ObjectId
-   - `name`: String
-   - `code`: String (Unique, Indexed, e.g. `CARD`, `GEN`)
-   - `description`: String
-   - `avg_consultation_time`: Integer (minutes, default 15)
-   - `is_active`: Boolean (Indexed)
-   - `created_at`: Date
-
-3. **`queues`**
-   - `_id`: ObjectId
-   - `department_id`: ObjectId (Indexed compound with `status`)
-   - `department_name`: String
-   - `department_code`: String
-   - `patient_id`: ObjectId (Indexed compound with `status`)
-   - `patient_name`: String
-   - `ticket_number`: String (Indexed, e.g. `CARD-001`)
-   - `position`: Integer
-   - `estimated_wait_minutes`: Integer
-   - `status`: String (`waiting`, `in_consultation`, `completed`, `cancelled`, `no_show`)
-   - `reason`: String (Optional)
-   - `called_at`: Date (Optional)
-   - `completed_at`: Date (Optional)
-   - `created_at`: Date (Indexed descending for FIFO ordering)
-   - `updated_at`: Date
-
-#### Created Indexes:
-- `users`:
-  - `idx_users_email_unique`: `{ email: 1 }` (unique)
-  - `idx_users_role`: `{ role: 1 }`
-- `departments`:
-  - `idx_departments_code_unique`: `{ code: 1 }` (unique)
-  - `idx_departments_is_active`: `{ is_active: 1 }`
+#### Indexes:
+- `users`: `{ email: 1 }` (unique), `{ role: 1 }`
+- `departments`: `{ code: 1 }` (unique), `{ name: 1 }` (unique), `{ is_active: 1 }`
+- `doctors`: `{ user_id: 1 }` (unique), `{ department_id: 1 }`, `{ is_available: 1 }`
 - `queues`:
-  - `idx_queues_department_status`: `{ department_id: 1, status: 1 }`
-  - `idx_queues_patient_status`: `{ patient_id: 1, status: 1 }`
-  - `idx_queues_ticket_number`: `{ ticket_number: 1 }`
-  - `idx_queues_created_at`: `{ created_at: -1 }`
+  - `{ department_id: 1, queue_date: 1 }`
+  - `{ department_id: 1, status: 1, joined_at: 1 }`
+  - `{ patient_id: 1, status: 1 }`
+  - `{ patient_id: 1, created_at: -1 }`
+  - `{ token_number: 1 }`
+- `audit_logs`: `{ timestamp: -1 }`, `{ action: 1 }`, `{ entity_type: 1, entity_id: 1 }`

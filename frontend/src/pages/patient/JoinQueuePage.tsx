@@ -8,7 +8,7 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
 import { Alert } from '../../components/ui/Alert';
-import { ArrowLeft, Clock, Users, Ticket } from 'lucide-react';
+import { ArrowLeft, Clock, Users, Ticket, Stethoscope } from 'lucide-react';
 
 export const JoinQueuePage: React.FC = () => {
   const navigate = useNavigate();
@@ -101,7 +101,9 @@ export const JoinQueuePage: React.FC = () => {
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-600">{selectedDept.description}</p>
+                {selectedDept.description && (
+                  <p className="text-xs text-slate-600">{selectedDept.description}</p>
+                )}
 
                 <div className="grid grid-cols-2 gap-3 pt-2 border-t border-sky-100 text-xs">
                   <div className="flex items-center gap-2 text-slate-700">
@@ -110,9 +112,33 @@ export const JoinQueuePage: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2 text-slate-700">
                     <Clock className="w-4 h-4 text-sky-600" />
-                    <span>Est. Wait: <strong>{formatWaitTime(selectedDept.estimated_wait_minutes ?? 0)}</strong></span>
+                    <span>Est. Wait: <strong>{formatWaitTime(selectedDept.estimated_wait_minutes)}</strong></span>
                   </div>
                 </div>
+
+                {/* Assigned Doctors */}
+                {selectedDept.doctors && selectedDept.doctors.length > 0 && (
+                  <div className="pt-2 border-t border-sky-100 text-xs">
+                    <span className="text-slate-500 font-medium flex items-center gap-1 mb-1">
+                      <Stethoscope className="w-3.5 h-3.5 text-sky-600" /> Medical Providers on Duty:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedDept.doctors.map((doc) => (
+                        <span
+                          key={doc.id}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium ${
+                            doc.is_available
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${doc.is_available ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                          {doc.display_name} {doc.specialty ? `(${doc.specialty})` : ''}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

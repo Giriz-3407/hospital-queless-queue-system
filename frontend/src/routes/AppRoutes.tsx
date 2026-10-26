@@ -15,7 +15,13 @@ import { PatientDashboardPage } from '../pages/patient/PatientDashboardPage';
 import { JoinQueuePage } from '../pages/patient/JoinQueuePage';
 import { MyQueuePage } from '../pages/patient/MyQueuePage';
 
-// Staff pages
+// Doctor pages
+import { DoctorDashboardPage } from '../pages/doctor/DoctorDashboardPage';
+
+// Admin pages
+import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage';
+
+// Staff legacy fallback page
 import { StaffDashboardPage } from '../pages/staff/StaffDashboardPage';
 
 export const AppRoutes: React.FC = () => {
@@ -28,7 +34,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/register" element={<RegisterPage />} />
       </Route>
 
-      {/* Patient Protected Routes with DashboardLayout */}
+      {/* Patient Protected Routes */}
       <Route
         path="/patient"
         element={
@@ -43,7 +49,33 @@ export const AppRoutes: React.FC = () => {
         <Route path="queue/:id" element={<MyQueuePage />} />
       </Route>
 
-      {/* Hospital Staff Protected Routes with DashboardLayout */}
+      {/* Doctor Protected Routes */}
+      <Route
+        path="/doctor"
+        element={
+          <ProtectedRoute allowedRoles={['doctor', 'admin']}>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/doctor/dashboard" replace />} />
+        <Route path="dashboard" element={<DoctorDashboardPage />} />
+      </Route>
+
+      {/* Admin Protected Routes */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboardPage />} />
+      </Route>
+
+      {/* Staff route (redirects or serves doctor dashboard) */}
       <Route
         path="/staff"
         element={

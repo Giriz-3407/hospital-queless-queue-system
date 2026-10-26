@@ -30,12 +30,16 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // If patient tries to access staff dashboard, redirect to patient dashboard
     if (user.role === 'patient') {
       return <Navigate to="/patient/dashboard" replace />;
     }
-    // If staff tries to access patient pages, redirect to staff dashboard
-    return <Navigate to="/staff/dashboard" replace />;
+    if (user.role === 'doctor') {
+      return <Navigate to="/doctor/dashboard" replace />;
+    }
+    if (user.role === 'admin') {
+      return <Navigate to="/admin/dashboard" replace />;
+    }
+    return <Navigate to="/" replace />;
   }
 
   return children;

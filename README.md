@@ -1,212 +1,197 @@
 # Queueless Smart Hospital Queue Management System
 
-A modern, web-based hospital queue management system designed to eliminate crowded waiting rooms. Patients can join virtual queues from their devices, track live queue positions, and view dynamic estimated waiting times without waiting physically in clinic waiting areas. Medical personnel and hospital staff manage consultations through an authenticated dashboard.
+A production-ready MVP web application designed to eliminate crowded hospital waiting rooms. Patients join virtual queues from their personal devices, track their live queue position, and view dynamic estimated waiting times. Doctors manage consultations directly from their department console, and hospital administrators manage departments, medical providers, and system-wide queues with a complete audit trail.
 
 ---
 
-## Key Features
-
-- **Virtual Queue Joining**: Patients select a hospital department and join the queue with automated ticket generation (e.g. `CARD-001`, `GEN-002`).
-- **Real-Time Position Tracking**: Dynamic queue position calculation and wait time estimation based on patients ahead.
-- **Fair FIFO Queueing**: First-in, first-out sequencing per clinical specialty.
-- **Patient Isolation**: Patients are strictly restricted to their own tickets; cross-patient data access is denied.
-- **Hospital Staff Dashboard**: Doctors and staff can view queues, call the next patient, complete consultations, or mark no-shows.
-- **MongoDB Database**: Indexed for fast lookups by department, patient, ticket number, and status; compatible with local MongoDB and MongoDB Atlas.
-- **Clean Architecture**: Decoupled routes, services, repositories, schemas, models, and middleware.
-
----
-
-## Technology Stack
+## Architecture & Technology Stack
 
 ### Frontend
-- **React 18** with **TypeScript**
-- **Vite** for fast builds and hot module replacement
-- **Tailwind CSS** for responsive medical UI design
-- **React Router v6** for client-side routing and protected routes
-- **Axios** with Bearer token interceptor and unified error handling
-- **Lucide React** for modern clinical iconography
+- **React 18** with **TypeScript** (Strict Mode)
+- **Vite** for rapid bundling and development
+- **Tailwind CSS** for healthcare UI design system
+- **React Router v6** for role-protected client-side routing
+- **Axios** with Bearer token injection and error normalization
+- **Lucide React** for clinical iconography
 
 ### Backend
 - **Python 3.10+ / 3.14** with **Flask**
-- **Flask Blueprints** for modular `/api/v1` routing
-- **Flask-CORS** restricted to frontend origin
-- **PyMongo** for MongoDB persistence and ObjectId management
-- **Pydantic v2** for input validation and normalization
-- **Werkzeug Security** for password hashing (`scrypt`/`pbkdf2`)
-- **PyJWT** for token-based authentication and role-based access control (RBAC)
-- **Pytest** for automated unit and integration tests
+- **Flask Blueprints** for versioned endpoints under `/api/v1` and `/health`
+- **PyMongo** for MongoDB integration with connection pooling and timeouts
+- **Pydantic v2** for request payload validation and sanitization
+- **Werkzeug Security** for password hashing (`scrypt`)
+- **PyJWT** for cryptographically signed HMAC-SHA256 authentication tokens
+- **Pytest** for automated unit, integration, and security tests (27 passing tests)
 
 ### Database
-- **MongoDB 6+** (Supports local instances and MongoDB Atlas clusters)
+- **MongoDB 6+** with compound indexes on email, departments, doctor assignments, daily tokens, and audit logs.
 
 ---
 
-## Project Structure
+## Application Roles & Capabilities
 
-```
-queueless-smart-hospital/
-│
-├── frontend/                     # React + TypeScript + Vite + Tailwind frontend
-│   ├── public/                   # Static assets & favicon
-│   ├── src/
-│   │   ├── assets/               # Branding assets
-│   │   ├── components/
-│   │   │   ├── common/           # Navbar, Footer, ProtectedRoute, StatusBadge
-│   │   │   ├── layout/           # MainLayout, DashboardLayout
-│   │   │   └── ui/               # Button, Card, Input, Select, Modal, Alert
-│   │   ├── pages/
-│   │   │   ├── public/           # HomePage, LoginPage, RegisterPage, NotFoundPage
-│   │   │   ├── patient/          # PatientDashboardPage, JoinQueuePage, MyQueuePage
-│   │   │   └── staff/            # StaffDashboardPage
-│   │   ├── routes/               # AppRoutes (declarative route registry)
-│   │   ├── services/             # Axios API client, auth, queue, department services
-│   │   ├── hooks/                # useAuth, useQueue polling hook
-│   │   ├── contexts/             # AuthContext (state, tokens, session hydration)
-│   │   ├── types/                # TypeScript interfaces (Auth, Queue, Api)
-│   │   ├── utils/                # Date/wait formatters, localStorage helpers
-│   │   ├── App.tsx               # Root component
-│   │   ├── main.tsx              # Application entry point
-│   │   └── index.css             # Tailwind base & custom utility styles
-│   ├── .env.example              # Frontend environment template
-│   ├── package.json              # Frontend dependencies
-│   ├── tsconfig.json             # TypeScript compiler configuration
-│   └── vite.config.ts            # Vite bundler configuration
-│
-├── backend/                      # Python Flask modular backend
-│   ├── app/
-│   │   ├── __init__.py           # Application factory (create_app)
-│   │   ├── config.py             # Class-based environment configuration
-│   │   ├── extensions.py         # CORS and MongoDB extensions
-│   │   ├── database/             # MongoDB connection manager and index definitions
-│   │   │   ├── connection.py     # Connection lifecycle and ObjectId serializers
-│   │   │   └── indexes.py        # Unique and compound index creation
-│   │   ├── models/               # User, Department, QueueTicket data models
-│   │   ├── schemas/              # Pydantic validation schemas
-│   │   ├── repositories/         # MongoDB CRUD repositories
-│   │   ├── services/             # Business logic layer (queue position, wait time)
-│   │   ├── routes/               # Modular Flask Blueprints (/api/v1)
-│   │   │   ├── health.py         # Health check and DB ping
-│   │   │   ├── auth.py           # Register, login, profile (/auth/me)
-│   │   │   ├── departments.py    # Department listing and management
-│   │   │   ├── queues.py         # Queue join, my queues, status updates
-│   │   │   └── patients.py       # Patient summary and history
-│   │   ├── middleware/           # JWT verification, RBAC, error handlers
-│   │   └── utils/                # Security hashing, tokens, API response envelopes
-│   ├── tests/                    # Pytest unit and integration test suite
-│   ├── run.py                    # Server startup script
-│   ├── requirements.txt          # Python dependencies
-│   ├── .env.example              # Backend environment template
-│   └── pytest.ini                # Pytest configuration
-│
-├── docs/                         # Technical documentation
-│   ├── architecture.md           # System architecture, state machine, data isolation
-│   ├── api.md                    # Complete REST API specification
-│   └── setup.md                  # Detailed environment setup guide
-│
-├── .gitignore                    # Git ignore rules for venv, node_modules, secrets
-├── README.md                     # Project overview and instructions
-└── package.json                  # Root development orchestrator
-```
+### 1. Patient
+- Public registration (`role: patient` enforced server-side; cannot elevate privileges).
+- View available hospital departments with consultation averages and medical staff on duty.
+- Join a department's virtual queue and receive an atomic sequential daily token (e.g. `GEN-001`, `CARD-002`).
+- Track live queue position, number of patients ahead, and dynamic estimated wait time.
+- Automated updates using visibility-aware polling (every 10s while tab is active, paused when hidden).
+- Cancel active waiting tickets.
+- View personal queue history (completed, cancelled, no-show).
+- Strict data isolation: Patients cannot view, modify, or cancel tickets belonging to other patients.
+
+### 2. Doctor
+- Secure login to the **Doctor Consultation Console** (`/doctor/dashboard`).
+- View assigned clinical department and real-time waiting queue.
+- Call the next eligible waiting patient (atomic FIFO transition: `WAITING` -> `CALLED`).
+- Start consultation (atomic transition: `CALLED` -> `IN_CONSULTATION`).
+- Complete consultation with clinical notes (atomic transition: `IN_CONSULTATION` -> `COMPLETED`).
+- Mark patient as `NO_SHOW`.
+- Department isolation: Doctors cannot operate on queues outside their assigned department.
+
+### 3. Hospital Administrator
+- Secure login to the **Administrator Dashboard** (`/admin/dashboard`).
+- View system metrics: active queues, departments, registered patients, and providers.
+- Department Management: Create departments, edit parameters, and activate/deactivate clinical clinics.
+- Doctor Management: Provision doctor credentials and assign to clinical departments; toggle availability.
+- Hospital Queues Monitor: Inspect all queues across departments with status filters.
+- Audit Trail: View timestamped security and workflow logs (patient registrations, queue joins, calls, consultations).
 
 ---
 
-## Quick Start Guide
+## State Transitions & Concurrency Safety
 
-### 1. Configure Environment Files
-
-Create `.env` from the provided `.env.example` templates:
-
-```powershell
-# In backend/
-cp backend/.env.example backend/.env
-
-# In frontend/
-cp frontend/.env.example frontend/.env
+```
+[ WAITING ] ────────► [ CALLED ] ────────► [ IN_CONSULTATION ] ────────► [ COMPLETED ]
+     │                      │
+     ├────────► [ CANCELLED ] (by patient)
+     │                      │
+     └────────► [ NO_SHOW ] ◄┘ (by doctor)
 ```
 
-### 2. Backend Setup
+- **Token Allocation**: Driven by MongoDB atomic `$inc` operations in a `counters` collection keyed by `{dept_id}_{YYYY-MM-DD}` to guarantee zero duplicate tokens under concurrent load.
+- **Queue State Changes**: Atomic conditional queries (e.g. `{"_id": id, "status": "WAITING"}`) ensure two simultaneous doctor requests cannot call the same patient or cause conflicting states.
+- **Wait Time Estimation**:
+  $$\text{estimated\_wait\_minutes} = \left\lceil \frac{\text{patients\_ahead} \times \text{avg\_consultation\_time}}{\text{effective\_available\_doctors}} \right\rceil$$
+  When no doctors are currently available on duty, the system returns `null` ("Estimate unavailable") rather than presenting a misleading zero-minute wait.
 
+---
+
+## Quick Start & Verification
+
+### 1. Prerequisites
+- Node.js v18+ & npm
+- Python 3.10+ (Python 3.14 compatible)
+- Running MongoDB instance (`mongodb://127.0.0.1:27017/`)
+
+### 2. Backend Setup & Test Suite
 ```powershell
 cd backend
-
-# Create virtual environment
 py -m venv venv
-
-# Activate virtual environment (Windows PowerShell)
 .\venv\Scripts\Activate.ps1
-# (macOS/Linux: source venv/bin/activate)
-
-# Install dependencies
 pip install -r requirements.txt
 
-# Run backend tests
-pytest
+# Run full test suite (27 passing tests)
+pytest -v
+
+# Provision the first administrator securely (CLI)
+python seed.py --admin --email admin@hospital.org --password AdminPass123! --name "Hospital Chief Admin"
+
+# Seed sample demonstration data (departments, doctors, patients, queues)
+python seed.py --demo
 
 # Start the Flask API server
 python run.py
 ```
-Backend API will start at `http://127.0.0.1:5000` with health check at `http://127.0.0.1:5000/api/v1/health`.
+Backend API will start at `http://127.0.0.1:5000` with health checks at `/health` and `/api/v1/health`.
 
-### 3. Frontend Setup
-
-In a new terminal:
+### 3. Frontend Setup & Production Build
+In a separate terminal:
 ```powershell
 cd frontend
-
-# Install dependencies
 npm install
 
-# Build check
+# Run TypeScript checks and production build
 npm run build
 
-# Start development server
+# Start Vite development server
 npm run dev
 ```
 Frontend web application will run at `http://localhost:5173`.
 
-### 4. Running Concurrently (Root)
+---
 
-From the project root:
+## Pre-Seeded Demonstration Accounts
+
+| Role | Email | Password | Console URL |
+|---|---|---|---|
+| **Hospital Administrator** | `admin@hospital.org` | `AdminPass123!` | `http://localhost:5173/admin/dashboard` |
+| **Attending Doctor (Cardiology)** | `dr.vance@hospital.org` | `DoctorPass123!` | `http://localhost:5173/doctor/dashboard` |
+| **Attending Doctor (Gen Medicine)**| `dr.smith@hospital.org` | `DoctorPass123!` | `http://localhost:5173/doctor/dashboard` |
+| **Patient (Seeded)** | `alice@example.com` | `PatientPass123!` | `http://localhost:5173/patient/dashboard` |
+| **Patient (Self-Register)** | Any valid email | (min 8 chars) | `http://localhost:5173/register` |
+
+---
+
+## API Endpoints Overview
+
+| Category | Method | Endpoint | Access | Purpose |
+|---|---|---|---|---|
+| **Health** | `GET` | `/health` | Public | Service health & MongoDB ping |
+| | `GET` | `/api/v1/health` | Public | Versioned health check |
+| **Auth** | `POST` | `/api/v1/auth/register` | Public | Patient registration (role restricted) |
+| | `POST` | `/api/v1/auth/login` | Public | Authenticate & issue JWT |
+| | `GET` | `/api/v1/auth/me` | Authenticated | Current user profile |
+| **Departments** | `GET` | `/api/v1/departments` | Public | Active departments with doctors & wait times |
+| | `GET` | `/api/v1/departments/<id>` | Public | Single department with assigned doctors |
+| | `POST` | `/api/v1/departments` | Admin | Create department |
+| | `PATCH` | `/api/v1/departments/<id>` | Admin | Update department details / active status |
+| | `GET` | `/api/v1/departments/<id>/queue` | Public | View active queue for department |
+| **Patients** | `GET` | `/api/v1/patients/me` | Patient | Patient active queue & summary stats |
+| | `GET` | `/api/v1/patients/me/queues` | Patient | Patient queue ticket history |
+| **Queues** | `POST` | `/api/v1/queues/join` | Patient | Join virtual queue & generate daily token |
+| | `GET` | `/api/v1/queues/my` | Patient | Retrieve patient active & past tickets |
+| | `GET` | `/api/v1/queues/<id>` | Patient/Doctor | View ticket (isolated to owner if patient) |
+| | `POST` | `/api/v1/queues/<id>/cancel` | Patient | Cancel pending waiting ticket |
+| **Doctor** | `GET` | `/api/v1/doctor/queue` | Doctor | Active queue, current called, & clinic stats |
+| | `POST` | `/api/v1/doctor/queue/next` | Doctor | Call next patient (WAITING -> CALLED) |
+| | `POST` | `/api/v1/doctor/queue/<id>/start` | Doctor | Start consultation (CALLED -> IN_CONSULTATION) |
+| | `POST` | `/api/v1/doctor/queue/<id>/complete`| Doctor | Complete consultation (IN_CONSULTATION -> COMPLETED) |
+| | `POST` | `/api/v1/doctor/queue/<id>/no-show` | Doctor | Mark patient as NO_SHOW |
+| **Admin** | `GET` | `/api/v1/admin/dashboard` | Admin | Hospital system statistics |
+| | `GET` | `/api/v1/admin/users` | Admin | List users with role filter & pagination |
+| | `GET` | `/api/v1/admin/doctors` | Admin | List doctors with department assignments |
+| | `POST` | `/api/v1/admin/doctors` | Admin | Provision doctor user & department profile |
+| | `PATCH` | `/api/v1/admin/doctors/<id>` | Admin | Update doctor availability & assignment |
+| | `POST` | `/api/v1/admin/departments` | Admin | Create new clinical department |
+| | `PATCH` | `/api/v1/admin/departments/<id>`| Admin | Update / activate / deactivate department |
+| | `GET` | `/api/v1/admin/queues` | Admin | All hospital queue tickets with filters |
+| | `GET` | `/api/v1/admin/audit-logs` | Admin | Audit activity logs with pagination |
+
+---
+
+## Automated Verification Suite
+
+Run all tests in `backend/`:
 ```powershell
-npm install
-npm run dev
+pytest -v
 ```
 
----
-
-## Verification & Test Results
-
-| Component | Status | Details |
-|---|---|---|
-| **Backend Dependencies** | Verified | Installed in `backend/venv` with Python 3.14 compatible wheels |
-| **Backend Test Suite** | Passed (12/12) | Auth, registration, password hashing, JWT, queue lifecycle, patient isolation |
-| **MongoDB Connectivity** | Verified | Connected to `mongodb://127.0.0.1:27017/` database `queueless_hospital` |
-| **MongoDB Indexes** | Verified | Indexes created for `users`, `departments`, `queues` |
-| **Health Check Endpoint** | 200 OK | Verified `/api/v1/health` reports status `healthy` with database `connected` |
-| **Frontend Dependencies** | Verified | Installed cleanly via `npm install` |
-| **Frontend TypeScript Build**| Passed | Built cleanly in 2.29s with zero errors (`npm run build`) |
-| **Git Repository** | Initialized | Ignored paths verified (.venv, node_modules, .env, dist, caches) |
+Tests cover:
+- Registration, validation, duplicate prevention, and privilege escalation prevention.
+- Secure password hashing and authentication token issuance.
+- Role-based access control (patient, doctor, administrator).
+- Sequential atomic daily token allocation.
+- Dynamic queue position and patients ahead calculation.
+- Waiting time estimation with doctor availability adjustments.
+- Patient data isolation and cross-patient access rejection.
+- Complete doctor workflow: call next -> start consultation -> complete consultation.
+- Doctor department isolation (cannot operate on tickets outside assigned clinic).
+- Administrator operations: department management, doctor provisioning, queues monitor, audit trail.
 
 ---
 
-## API Summary
-
-| Method | Endpoint | Access | Purpose |
-|---|---|---|---|
-| `GET` | `/api/v1/health` | Public | Service health & database connectivity |
-| `POST` | `/api/v1/auth/register` | Public | Register new patient or staff |
-| `POST` | `/api/v1/auth/login` | Public | Authenticate and obtain JWT |
-| `GET` | `/api/v1/auth/me` | Authenticated | Retrieve current user profile |
-| `GET` | `/api/v1/departments` | Public | List active departments & live wait times |
-| `POST` | `/api/v1/departments` | Staff/Admin | Create new clinical department |
-| `POST` | `/api/v1/queues/join` | Patient | Join virtual queue & get ticket |
-| `GET` | `/api/v1/queues/my` | Patient | Get patient's live active & past tickets |
-| `GET` | `/api/v1/queues/<id>` | Patient/Staff | Retrieve ticket (isolated by patient ownership) |
-| `POST` | `/api/v1/queues/<id>/cancel` | Patient/Staff | Cancel waiting ticket |
-| `GET` | `/api/v1/queues` | Staff/Doctor | List all queues with filtering |
-| `PATCH` | `/api/v1/queues/<id>/status` | Staff/Doctor | Update consultation status |
-| `GET` | `/api/v1/patients/me` | Patient | Get patient summary and visit history |
-
-See [`docs/api.md`](docs/api.md) for full request/response schemas.
-See [`docs/architecture.md`](docs/architecture.md) for architecture details.
-See [`docs/setup.md`](docs/setup.md) for setup guide.
+## Documentation Links
+- Detailed Setup: [`docs/setup.md`](docs/setup.md)
+- REST API Specification: [`docs/api.md`](docs/api.md)
+- System Architecture: [`docs/architecture.md`](docs/architecture.md)

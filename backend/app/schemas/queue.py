@@ -1,6 +1,7 @@
-from typing import Optional, Literal
+from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
+from app.models.queue import QueueStatus
 
 
 class JoinQueueSchema(BaseModel):
@@ -16,7 +17,13 @@ class JoinQueueSchema(BaseModel):
 
 
 class QueueStatusUpdateSchema(BaseModel):
-    status: Literal["waiting", "in_consultation", "completed", "cancelled", "no_show"] = Field(
-        ..., description="Updated queue ticket status"
-    )
+    status: str = Field(..., description="Updated queue ticket status")
     notes: Optional[str] = Field(None, max_length=500, description="Staff consultation notes")
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        norm = QueueStatus.normalize(v)
+        if norm not in QueueStatus.ALL_STATUSES:
+            raise ValueError(f"Invalid queue status '{v}'. Allowed statuses: {QueueStatus.ALL_STATUSES}")
+        return norm

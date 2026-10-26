@@ -1,4 +1,7 @@
-export function formatWaitTime(minutes: number): string {
+export function formatWaitTime(minutes?: number | null): string {
+  if (minutes === null || minutes === undefined) {
+    return 'Estimate unavailable';
+  }
   if (minutes <= 0) return 'Immediate / Next';
   if (minutes < 60) return `~${minutes} mins`;
   const hours = Math.floor(minutes / 60);
@@ -6,14 +9,17 @@ export function formatWaitTime(minutes: number): string {
   return remainingMins > 0 ? `~${hours}h ${remainingMins}m` : `~${hours}h`;
 }
 
-export function formatDateTime(isoString: string): string {
+export function formatDateTime(isoString?: string | null): string {
   if (!isoString) return '-';
   try {
     const date = new Date(isoString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' +
-      date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return (
+      date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) +
+      ', ' +
+      date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    );
   } catch {
-    return isoString;
+    return String(isoString);
   }
 }
 
