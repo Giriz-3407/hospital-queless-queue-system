@@ -16,30 +16,19 @@ class HomeScreen extends ConsumerWidget {
     final authState = ref.watch(authNotifierProvider);
     final departmentsAsync = ref.watch(departmentsProvider);
     final myQueuesAsync = ref.watch(myQueuesProvider);
+    final summaryAsync = ref.watch(patientSummaryProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Queueless Hospital'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.history_rounded),
-            tooltip: 'Visit History',
-            onPressed: () => context.go('/history'),
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
+            tooltip: 'Refresh Dashboard',
             onPressed: () {
               ref.invalidate(departmentsProvider);
               ref.invalidate(myQueuesProvider);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Sign Out',
-            onPressed: () async {
-              await ref.read(authNotifierProvider.notifier).logout();
-              if (context.mounted) context.go('/login');
+              ref.invalidate(patientSummaryProvider);
             },
           ),
         ],
@@ -48,6 +37,7 @@ class HomeScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(departmentsProvider);
           ref.invalidate(myQueuesProvider);
+          ref.invalidate(patientSummaryProvider);
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -55,7 +45,7 @@ class HomeScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Welcome Banner
+              // Welcome Greeting Card
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(18),
@@ -65,10 +55,10 @@ class HomeScreen extends ConsumerWidget {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryLight,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                         child: const Icon(
-                          Icons.person_outline_rounded,
+                          Icons.local_hospital_rounded,
                           color: AppTheme.primary,
                           size: 28,
                         ),
@@ -88,7 +78,7 @@ class HomeScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 2),
                             const Text(
-                              'Live queue tracking & department queues',
+                              'Queueless Smart Virtual Queuing',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: AppTheme.textSecondary,
@@ -97,43 +87,141 @@ class HomeScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
+                      IconButton(
+                        icon: const Icon(Icons.account_circle_outlined,
+                            size: 28, color: AppTheme.primary),
+                        tooltip: 'View Profile',
+                        onPressed: () => context.go('/profile'),
+                      ),
                     ],
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // Overview Stats Row (from patientSummaryProvider)
+              summaryAsync.when(
+                data: (summary) => Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryCard(
+                        title: 'Active Tickets',
+                        count: '${summary.activeTicketsCount}',
+                        color: AppTheme.accent,
+                        icon: Icons.confirmation_number_outlined,
+                        onTap: () => context.go('/queue'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryCard(
+                        title: 'Completed Visits',
+                        count: '${summary.pastVisitsCount}',
+                        color: AppTheme.completed,
+                        icon: Icons.done_all_rounded,
+                        onTap: () => context.go('/history'),
+                      ),
+                    ),
+                  ],
+                ),
+                loading: () => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
+              ),
               const SizedBox(height: 20),
 
-              // Active Queue Ticket (if any)
+              // Active Queue Card or Encouraging Empty State
               myQueuesAsync.when(
                 data: (tickets) {
                   final active = tickets.where((t) => t.isActive).toList();
-                  if (active.isEmpty) return const SizedBox.shrink();
-                  final ticket = active.first;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Your Active Ticket',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
+                  if (active.isNotEmpty) {
+                    final ticket = active.first;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Your Active Queue Ticket',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            TextButton.icon(
+                              icon: const Icon(Icons.arrow_forward, size: 16),
+                              label: const Text('Track Full View'),
+                              onPressed: () =>
+                                  context.go('/queue/${ticket.id}'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        _ActiveTicketBanner(ticket: ticket),
+                        const SizedBox(height: 24),
+                      ],
+                    );
+                  } else {
+                    return Card(
+                      color: AppTheme.primaryLight.withAlpha(40),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: AppTheme.primary.withAlpha(50),
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      _ActiveTicketCard(ticket: ticket),
-                      const SizedBox(height: 24),
-                    ],
-                  );
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.info_outline,
+                                    color: AppTheme.primary, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'No Active Queue Ticket',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primaryDark,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'You are not currently waiting in line. Choose a clinical department below to take a queue token virtually.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.textSecondary,
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.add_circle_outline,
+                                  size: 18),
+                              label: const Text('Browse Departments & Join'),
+                              onPressed: () => context.go('/departments'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
                 },
                 loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
+                  padding: EdgeInsets.symmetric(vertical: 12),
                   child: Center(child: CircularProgressIndicator()),
                 ),
                 error: (_, _) => const SizedBox.shrink(),
               ),
+              const SizedBox(height: 24),
 
-              // Clinical Departments Header
+              // Clinical Departments Section
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -145,22 +233,22 @@ class HomeScreen extends ConsumerWidget {
                       color: AppTheme.textPrimary,
                     ),
                   ),
-                  TextButton.icon(
-                    icon: const Icon(Icons.add_circle_outline, size: 18),
-                    label: const Text('Join Queue'),
-                    onPressed: () => context.go('/queue/join'),
+                  TextButton(
+                    onPressed: () => context.go('/departments'),
+                    child: const Text('View All'),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
-              // Departments List
+              // Department Cards
               departmentsAsync.when(
                 data: (depts) {
-                  if (depts.isEmpty) {
+                  final active = depts.where((d) => d.isActive).take(4).toList();
+                  if (active.isEmpty) {
                     return const Center(
                       child: Padding(
-                        padding: EdgeInsets.all(32),
+                        padding: EdgeInsets.all(24),
                         child: Text(
                           'No hospital departments available.',
                           style: TextStyle(color: AppTheme.textSecondary),
@@ -171,10 +259,10 @@ class HomeScreen extends ConsumerWidget {
                   return ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: depts.length,
+                    itemCount: active.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (ctx, i) =>
-                        _DepartmentTile(department: depts[i]),
+                        _DepartmentTile(department: active[i]),
                   );
                 },
                 loading: () => const LoadingIndicator(
@@ -212,10 +300,74 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _ActiveTicketCard extends StatelessWidget {
+class _SummaryCard extends StatelessWidget {
+  final String title;
+  final String count;
+  final Color color;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _SummaryCard({
+    required this.title,
+    required this.count,
+    required this.color,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withAlpha(25),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      count,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: color,
+                      ),
+                    ),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveTicketBanner extends StatelessWidget {
   final QueueTicketModel ticket;
 
-  const _ActiveTicketCard({required this.ticket});
+  const _ActiveTicketBanner({required this.ticket});
 
   @override
   Widget build(BuildContext context) {
@@ -256,80 +408,75 @@ class _ActiveTicketCard extends StatelessWidget {
                 StatusChip(status: ticket.status),
               ],
             ),
-            const Divider(height: 24),
+            const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _StatColumn(
-                  label: 'Ticket Number',
-                  value: ticket.tokenNumber,
-                  valueColor: AppTheme.primary,
-                  isBold: true,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'TOKEN NUMBER',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      ticket.tokenNumber,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.primaryDark,
+                      ),
+                    ),
+                  ],
                 ),
-                _StatColumn(
-                  label: 'Live Position',
-                  value: '#${ticket.livePosition}',
-                  valueColor: AppTheme.accent,
-                ),
-                _StatColumn(
-                  label: 'Est. Wait',
-                  value: ticket.liveEstimatedWaitMinutes != null
-                      ? '${ticket.liveEstimatedWaitMinutes} min'
-                      : '--',
-                  valueColor: AppTheme.waiting,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Position #${ticket.livePosition}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.accent,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${ticket.patientsAhead} patients ahead',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      ticket.liveEstimatedWaitMinutes != null
+                          ? '~${ticket.liveEstimatedWaitMinutes} min wait'
+                          : 'Wait time unavailable',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.waiting,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.visibility_outlined, size: 18),
-                label: const Text('View Live Ticket Details'),
-                onPressed: () => context.go('/queue/${ticket.id}'),
-              ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.visibility_outlined, size: 18),
+              label: const Text('Open Live Tracker & Details'),
+              onPressed: () => context.go('/queue/${ticket.id}'),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _StatColumn extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color? valueColor;
-  final bool isBold;
-
-  const _StatColumn({
-    required this.label,
-    required this.value,
-    this.valueColor,
-    this.isBold = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: AppTheme.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: isBold ? FontWeight.w800 : FontWeight.w700,
-            color: valueColor ?? AppTheme.textPrimary,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -350,85 +497,74 @@ class _DepartmentTile extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: AppTheme.primaryLight,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(
-                    department.code,
-                    style: const TextStyle(
-                      color: AppTheme.primaryDark,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
+                  child: const Icon(
+                    Icons.local_hospital_rounded,
+                    color: AppTheme.primary,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    department.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        department.name,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Code: ${department.code}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(90, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  onPressed: () {
+                    context.go(
+                      '/queue/join?dept_id=${department.id}&dept_name=${Uri.encodeComponent(department.name)}',
+                    );
+                  },
+                  child: const Text('Join', style: TextStyle(fontSize: 13)),
                 ),
               ],
             ),
-            if (department.description != null &&
-                department.description!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                department.description!,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-            ],
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.people_outline,
-                        size: 16, color: AppTheme.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${department.currentWaiting} waiting',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    const Icon(Icons.access_time,
-                        size: 16, color: AppTheme.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      department.estimatedWaitMinutes != null
-                          ? '~${department.estimatedWaitMinutes} min'
-                          : '~${department.avgConsultationTime} min/pt',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Waiting: ${department.currentWaiting} patients',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(100, 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                const Spacer(),
+                Text(
+                  department.estimatedWaitMinutes != null
+                      ? 'Est. Wait: ~${department.estimatedWaitMinutes} min'
+                      : 'Wait: unavailable',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.waiting,
                   ),
-                  onPressed: () => context.go(
-                    '/queue/join?dept_id=${department.id}&dept_name=${Uri.encodeComponent(department.name)}',
-                  ),
-                  child: const Text('Join', style: TextStyle(fontSize: 13)),
                 ),
               ],
             ),

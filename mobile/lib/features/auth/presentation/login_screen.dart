@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/server_settings_dialog.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -34,54 +35,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
 
     if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Welcome back to Queueless!'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
       context.go('/home');
     }
-  }
-
-  void _showServerSettings() {
-    final urlController = TextEditingController(text: ApiConfig.baseUrl);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Backend API Server'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Set Flask backend API URL (e.g. http://10.0.2.2:5000/api/v1 for emulator or http://<computer-lan-ip>:5000/api/v1 for physical phone):',
-              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: urlController,
-              decoration: const InputDecoration(
-                labelText: 'Base URL',
-                hintText: 'http://10.0.2.2:5000/api/v1',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              ApiConfig.resetToDefault();
-              Navigator.pop(ctx);
-              setState(() {});
-            },
-            child: const Text('Reset'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              ApiConfig.setBaseUrl(urlController.text);
-              Navigator.pop(ctx);
-              setState(() {});
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -90,12 +52,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Queueless Hospital'),
+        title: const Text('Patient Sign In'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/welcome'),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Server Settings',
-            onPressed: _showServerSettings,
+            onPressed: () => ServerSettingsDialog.show(context),
           ),
         ],
       ),
@@ -109,22 +75,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // App Icon / Branding
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryLight,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.local_hospital_rounded,
-                      size: 40,
-                      color: AppTheme.primary,
+                  Center(
+                    child: Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryLight,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Icon(
+                        Icons.local_hospital_rounded,
+                        size: 38,
+                        color: AppTheme.primary,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
                   const Text(
                     'Welcome back',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -133,7 +102,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Sign in to manage your hospital queue tickets',
+                    'Sign in to manage and track your virtual queue tickets',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
                       color: AppTheme.textSecondary,
@@ -151,9 +121,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         border: Border.all(color: AppTheme.error.withAlpha(50)),
                       ),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.error_outline,
-                              color: AppTheme.error, size: 20),
+                          const Padding(
+                            padding: EdgeInsets.only(top: 2),
+                            child: Icon(Icons.error_outline,
+                                color: AppTheme.error, size: 20),
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
@@ -175,14 +149,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'Email Address',
+                      hintText: 'patient@example.com',
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
                         return 'Please enter your email address';
                       }
-                      if (!val.contains('@') || !val.contains('.')) {
-                        return 'Please enter a valid email';
+                      final email = val.trim();
+                      if (!RegExp(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
+                          .hasMatch(email)) {
+                        return 'Please enter a valid email address';
                       }
                       return null;
                     },
@@ -253,7 +230,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 16),
                   Center(
                     child: Text(
-                      'Server: ${ApiConfig.baseUrl}',
+                      'Connected to: ${ApiConfig.baseUrl}',
                       style: const TextStyle(
                         fontSize: 11,
                         color: AppTheme.textSecondary,

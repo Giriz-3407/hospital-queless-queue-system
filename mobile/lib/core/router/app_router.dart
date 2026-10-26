@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers.dart';
+import '../../features/auth/presentation/splash_screen.dart';
+import '../../features/auth/presentation/welcome_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
+import '../../features/home/presentation/departments_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
+import '../../features/home/presentation/main_shell.dart';
+import '../../features/patient/presentation/profile_screen.dart';
+import '../../features/queue/presentation/active_queue_tab.dart';
 import '../../features/queue/presentation/join_queue_screen.dart';
 import '../../features/queue/presentation/queue_status_screen.dart';
 
@@ -16,30 +22,40 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (BuildContext context, GoRouterState state) {
       final authState = ref.read(authNotifierProvider);
 
-      if (authState.isLoading) {
+      // Still running startup checks
+      if (!authState.isInitialized) {
         return null;
       }
 
       final isAuth = authState.isAuthenticated;
       final location = state.uri.path;
-      final isAuthRoute = location == '/login' || location == '/register';
+      final isPublicRoute = location == '/' ||
+          location == '/welcome' ||
+          location == '/login' ||
+          location == '/register';
 
-      if (!isAuth && !isAuthRoute) {
-        return '/login';
+      // Unauthenticated user trying to access protected screen
+      if (!isAuth && !isPublicRoute) {
+        return '/welcome';
       }
 
-      if (isAuth && (isAuthRoute || location == '/')) {
+      // Authenticated user trying to access public / auth screens
+      if (isAuth && isPublicRoute) {
         return '/home';
       }
 
       return null;
     },
     routes: [
+      // Splash Startup
       GoRoute(
         path: '/',
-        builder: (context, state) => const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
+        builder: (context, state) => const SplashScreen(),
+      ),
+      // Public Auth Routes
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const WelcomeScreen(),
       ),
       GoRoute(
         path: '/login',
@@ -49,10 +65,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomeScreen(),
-      ),
+
+      // Standalone Fullscreen Flow Routes
       GoRoute(
         path: '/queue/join',
         builder: (context, state) {
@@ -71,9 +85,34 @@ final routerProvider = Provider<GoRouter>((ref) {
           return QueueStatusScreen(queueId: id);
         },
       ),
-      GoRoute(
-        path: '/history',
-        builder: (context, state) => const HistoryScreen(),
+
+      // Authenticated Shell with Persistent Bottom Navigation Bar
+      ShellRoute(
+        builder: (context, state, child) {
+          return MainShell(child: child);
+        },
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: '/departments',
+            builder: (context, state) => const DepartmentsScreen(),
+          ),
+          GoRoute(
+            path: '/queue',
+            builder: (context, state) => const ActiveQueueTab(),
+          ),
+          GoRoute(
+            path: '/history',
+            builder: (context, state) => const HistoryScreen(),
+          ),
+          GoRoute(
+            path: '/profile',
+            builder: (context, state) => const ProfileScreen(),
+          ),
+        ],
       ),
     ],
   );

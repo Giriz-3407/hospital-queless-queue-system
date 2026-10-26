@@ -7,6 +7,8 @@ import '../features/home/models/department_model.dart';
 import '../features/home/repositories/department_repository.dart';
 import '../features/queue/models/queue_ticket_model.dart';
 import '../features/queue/repositories/queue_repository.dart';
+import '../features/patient/models/patient_summary_model.dart';
+import '../features/patient/repositories/patient_repository.dart';
 
 // Storage & Network
 final secureStorageProvider = Provider<SecureStorageService>((ref) {
@@ -35,15 +37,22 @@ final queueRepositoryProvider = Provider<QueueRepository>((ref) {
   return QueueRepository(client: client);
 });
 
+final patientRepositoryProvider = Provider<PatientRepository>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return PatientRepository(client: client);
+});
+
 // Auth State
 class AuthState {
   final bool isLoading;
+  final bool isInitialized;
   final bool isAuthenticated;
   final UserModel? user;
   final String? errorMessage;
 
   const AuthState({
     this.isLoading = false,
+    this.isInitialized = false,
     this.isAuthenticated = false,
     this.user,
     this.errorMessage,
@@ -51,6 +60,7 @@ class AuthState {
 
   AuthState copyWith({
     bool? isLoading,
+    bool? isInitialized,
     bool? isAuthenticated,
     UserModel? user,
     String? errorMessage,
@@ -58,6 +68,7 @@ class AuthState {
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
+      isInitialized: isInitialized ?? this.isInitialized,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       user: user ?? this.user,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
@@ -69,22 +80,50 @@ class AuthNotifier extends Notifier<AuthState> {
   @override
   AuthState build() {
     Future.microtask(() => checkInitialAuth());
-    return const AuthState(isLoading: true);
+    return const AuthState(isLoading: true, isInitialized: false);
   }
 
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 
   Future<void> checkInitialAuth() async {
     try {
-      final isAuth = await _repo.isAuthenticated();
-      if (isAuth) {
+      final hasToken = await _repo.isAuthenticated();
+      if (hasToken) {
+        // Authenticate token against backend
         final user = await _repo.getMe();
-        state = AuthState(isAuthenticated: true, user: user);
+        if (user.role.toLowerCase() != 'patient') {
+          // Reject non-patient accounts
+          await _repo.logout();
+          state = const AuthState(
+            isLoading: false,
+            isInitialized: true,
+            isAuthenticated: false,
+            errorMessage:
+                'Access restricted: This mobile app is exclusively for patients.',
+          );
+          return;
+        }
+        state = AuthState(
+          isLoading: false,
+          isInitialized: true,
+          isAuthenticated: true,
+          user: user,
+        );
       } else {
-        state = const AuthState(isAuthenticated: false);
+        state = const AuthState(
+          isLoading: false,
+          isInitialized: true,
+          isAuthenticated: false,
+        );
       }
     } catch (_) {
-      state = const AuthState(isAuthenticated: false);
+      // Invalidate invalid/expired token
+      await _repo.logout();
+      state = const AuthState(
+        isLoading: false,
+        isInitialized: true,
+        isAuthenticated: false,
+      );
     }
   }
 
@@ -92,7 +131,23 @@ class AuthNotifier extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final authData = await _repo.login(email: email, password: password);
-      state = AuthState(isAuthenticated: true, user: authData.user);
+      // Strictly enforce patient role check
+      if (authData.user.role.toLowerCase() != 'patient') {
+        await _repo.logout();
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: false,
+          errorMessage:
+              'Access restricted: The mobile application is reserved for patients. Hospital doctors and staff must use the web portal.',
+        );
+        return false;
+      }
+      state = AuthState(
+        isLoading: false,
+        isInitialized: true,
+        isAuthenticated: true,
+        user: authData.user,
+      );
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -117,7 +172,12 @@ class AuthNotifier extends Notifier<AuthState> {
         password: password,
         phone: phone,
       );
-      state = AuthState(isAuthenticated: true, user: authData.user);
+      state = AuthState(
+        isLoading: false,
+        isInitialized: true,
+        isAuthenticated: true,
+        user: authData.user,
+      );
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -130,11 +190,17 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> logout() async {
     await _repo.logout();
-    state = const AuthState(isAuthenticated: false);
+    state = const AuthState(
+      isLoading: false,
+      isInitialized: true,
+      isAuthenticated: false,
+    );
   }
 
   void handleSessionExpired() {
     state = const AuthState(
+      isLoading: false,
+      isInitialized: true,
       isAuthenticated: false,
       errorMessage: 'Your session has expired. Please log in again.',
     );
@@ -143,6 +209,13 @@ class AuthNotifier extends Notifier<AuthState> {
 
 final authNotifierProvider =
     NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
+
+// Patient Dashboard Provider
+final patientSummaryProvider =
+    FutureProvider.autoDispose<PatientSummaryModel>((ref) async {
+  final repo = ref.watch(patientRepositoryProvider);
+  return repo.getPatientSummary();
+});
 
 // Department & Queue Providers
 final departmentsProvider =

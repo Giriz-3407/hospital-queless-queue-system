@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../home/models/department_model.dart';
 
 class JoinQueueScreen extends ConsumerStatefulWidget {
   final String? initialDeptId;
@@ -25,6 +26,7 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
   final _reasonController = TextEditingController();
   bool _isSubmitting = false;
   String? _errorMessage;
+  bool _hasExistingTicketError = false;
 
   @override
   void initState() {
@@ -47,6 +49,7 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
+      _hasExistingTicketError = false;
     });
 
     try {
@@ -58,17 +61,33 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
             : _reasonController.text.trim(),
       );
 
-      // Invalidate queues provider so home screen updates
+      // Invalidate relevant providers
       ref.invalidate(myQueuesProvider);
+      ref.invalidate(patientSummaryProvider);
+      ref.invalidate(departmentsProvider);
 
       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Successfully joined queue! Your token is ${ticket.tokenNumber}.',
+            ),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppTheme.completed,
+          ),
+        );
+        // Navigate to the live tracking screen with server-issued ticket ID
         context.go('/queue/${ticket.id}');
       }
     } catch (e) {
       if (mounted) {
+        final errText = e.toString().replaceFirst('ApiException: ', '');
+        final isAlreadyActive =
+            errText.toLowerCase().contains('already hold an active');
         setState(() {
           _isSubmitting = false;
-          _errorMessage = e.toString().replaceFirst('ApiException: ', '');
+          _errorMessage = errText;
+          _hasExistingTicketError = isAlreadyActive;
         });
       }
     }
@@ -81,6 +100,10 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Join Virtual Queue'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/home'),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -100,7 +123,7 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Choose a clinical department and receive your virtual queue ticket instantly.',
+                  'Select a clinical department to take your daily queue token virtually.',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppTheme.textSecondary,
@@ -108,27 +131,52 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Error message banner
+                // Error Banner
                 if (_errorMessage != null) ...[
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: AppTheme.error.withAlpha(25),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.error.withAlpha(50)),
+                      border: Border.all(color: AppTheme.error.withAlpha(60)),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.error_outline,
-                            color: AppTheme.error, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(
-                                color: AppTheme.error, fontSize: 13),
-                          ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 2),
+                              child: Icon(Icons.error_outline,
+                                  color: AppTheme.error, size: 20),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: const TextStyle(
+                                  color: AppTheme.error,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                        if (_hasExistingTicketError) ...[
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.accent,
+                              minimumSize: const Size.fromHeight(40),
+                            ),
+                            icon: const Icon(Icons.confirmation_number_outlined,
+                                size: 18),
+                            label: const Text('View Active Queue Ticket'),
+                            onPressed: () => context.go('/queue'),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -138,63 +186,166 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
                 // Department Selector
                 departmentsAsync.when(
                   data: (departments) {
-                    if (departments.isEmpty) {
-                      return const Text('No active departments found.');
+                    final activeDepts =
+                        departments.where((d) => d.isActive).toList();
+
+                    if (activeDepts.isEmpty) {
+                      return const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                            'No departments are currently accepting queue bookings.',
+                            style: TextStyle(color: AppTheme.textSecondary),
+                          ),
+                        ),
+                      );
                     }
-                    return DropdownButtonFormField<String>(
-                      initialValue: _selectedDepartmentId,
-                      decoration: const InputDecoration(
-                        labelText: 'Select Department *',
-                        prefixIcon: Icon(Icons.local_hospital_outlined),
-                      ),
-                      items: departments.map((d) {
-                        return DropdownMenuItem<String>(
-                          value: d.id,
-                          child: Text('${d.name} (${d.code})'),
+
+                    // Selected department details
+                    final selectedDept = activeDepts.cast<DepartmentModel?>().firstWhere(
+                          (d) => d?.id == _selectedDepartmentId,
+                          orElse: () => null,
                         );
-                      }).toList(),
-                      onChanged: (val) {
-                        setState(() => _selectedDepartmentId = val);
-                      },
-                      validator: (val) =>
-                          val == null ? 'Please select a department' : null,
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedDepartmentId,
+                          decoration: const InputDecoration(
+                            labelText: 'Select Department *',
+                            prefixIcon: Icon(Icons.local_hospital_outlined),
+                          ),
+                          hint: const Text('Choose a department'),
+                          items: activeDepts.map((d) {
+                            return DropdownMenuItem<String>(
+                              value: d.id,
+                              child: Text('${d.name} (${d.code})'),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedDepartmentId = val;
+                              _errorMessage = null;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Selected Department Info Card
+                        if (selectedDept != null) ...[
+                          Card(
+                            color: AppTheme.primaryLight.withAlpha(50),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.info_outline,
+                                          size: 18, color: AppTheme.primary),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Department Summary: ${selectedDept.name}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: AppTheme.primaryDark,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (selectedDept.description != null &&
+                                      selectedDept.description!.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      selectedDept.description!,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Waiting Patients: ${selectedDept.currentWaiting}',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Est. Wait: ${selectedDept.estimatedWaitMinutes != null ? "~${selectedDept.estimatedWaitMinutes} min" : "Unavailable"}',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.waiting,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      ],
                     );
                   },
                   loading: () => const LoadingIndicator(
-                    message: 'Loading hospital departments...',
+                    message: 'Loading clinical departments...',
                   ),
-                  error: (e, _) => Text(
-                    'Failed to load departments: $e',
+                  error: (err, _) => Text(
+                    'Failed to load departments: $err',
                     style: const TextStyle(color: AppTheme.error),
                   ),
                 ),
-                const SizedBox(height: 18),
 
-                // Reason / Symptoms
+                // Reason for Visit (Optional)
                 TextFormField(
                   controller: _reasonController,
                   maxLines: 3,
+                  textInputAction: TextInputAction.done,
                   decoration: const InputDecoration(
-                    labelText: 'Reason for Visit / Symptoms (Optional)',
-                    hintText: 'e.g. Mild headache, routine consultation...',
+                    labelText: 'Reason for Visit (Optional)',
+                    hintText: 'e.g. Mild fever, persistent headache, routine checkup',
                     alignLabelWithHint: true,
+                    prefixIcon: Padding(
+                      padding: EdgeInsets.only(bottom: 40),
+                      child: Icon(Icons.notes_rounded),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 28),
 
                 // Submit Button
-                ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submit,
-                  child: _isSubmitting
+                ElevatedButton.icon(
+                  icon: _isSubmitting
                       ? const SizedBox(
-                          width: 22,
-                          height: 22,
+                          width: 20,
+                          height: 20,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
+                            strokeWidth: 2,
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Get Queue Ticket'),
+                      : const Icon(Icons.check_circle_outline),
+                  label: Text(_isSubmitting
+                      ? 'Generating Token...'
+                      : 'Confirm & Join Queue'),
+                  onPressed: _isSubmitting ? null : _submit,
+                ),
+                const SizedBox(height: 12),
+
+                OutlinedButton(
+                  onPressed: () => context.go('/home'),
+                  child: const Text('Cancel'),
                 ),
               ],
             ),
