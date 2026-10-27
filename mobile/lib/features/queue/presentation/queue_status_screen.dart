@@ -177,13 +177,27 @@ class _QueueStatusScreenState extends ConsumerState<QueueStatusScreen>
   Widget build(BuildContext context) {
     final ticketAsync = ref.watch(singleTicketProvider(widget.queueId));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Live Queue Tracking'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/home'),
-        ),
+    void handleBack() {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/home');
+      }
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        handleBack();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Live Queue Tracking'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: handleBack,
+          ),
         actions: [
           if (_isPollingInProgress)
             const Center(
@@ -244,8 +258,9 @@ class _QueueStatusScreenState extends ConsumerState<QueueStatusScreen>
                 ),
               ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildTicketView(QueueTicketModel ticket) {
     return SingleChildScrollView(

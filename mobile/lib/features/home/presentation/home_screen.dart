@@ -153,7 +153,7 @@ class HomeScreen extends ConsumerWidget {
                               icon: const Icon(Icons.arrow_forward, size: 16),
                               label: const Text('Track Full View'),
                               onPressed: () =>
-                                  context.go('/queue/${ticket.id}'),
+                                  context.push('/queue/${ticket.id}'),
                             ),
                           ],
                         ),
@@ -486,7 +486,7 @@ class _ActiveTicketBanner extends StatelessWidget {
             ElevatedButton.icon(
               icon: const Icon(Icons.visibility_outlined, size: 18),
               label: const Text('Open Live Tracker & Details'),
-              onPressed: () => context.go('/queue/${ticket.id}'),
+              onPressed: () => context.push('/queue/${ticket.id}'),
             ),
           ],
         ),
@@ -533,7 +533,7 @@ class _DepartmentTile extends StatelessWidget {
               label: const Text('View Active Ticket'),
               onPressed: () {
                 Navigator.pop(ctx);
-                context.go('/queue/${activeTicket!.id}');
+                context.push('/queue/${activeTicket!.id}');
               },
             ),
           ],
@@ -542,7 +542,7 @@ class _DepartmentTile extends StatelessWidget {
       return;
     }
 
-    context.go(
+    context.push(
       '/queue/join?dept_id=${department.id}&dept_name=${Uri.encodeComponent(department.name)}',
     );
   }

@@ -449,7 +449,7 @@ class _HistoryTicketCard extends StatelessWidget {
                   TextButton.icon(
                     icon: const Icon(Icons.arrow_forward_rounded, size: 16),
                     label: const Text('Track Live'),
-                    onPressed: () => context.go('/queue/${ticket.id}'),
+                    onPressed: () => context.push('/queue/${ticket.id}'),
                   ),
                 ] else if (isDone) ...[
                   OutlinedButton.icon(

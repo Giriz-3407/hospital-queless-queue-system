@@ -107,12 +107,12 @@ class WelcomeScreen extends StatelessWidget {
 
               // Action Buttons
               ElevatedButton(
-                onPressed: () => context.go('/login'),
+                onPressed: () => context.push('/login'),
                 child: const Text('Log In to Patient Account'),
               ),
               const SizedBox(height: 12),
               OutlinedButton(
-                onPressed: () => context.go('/register'),
+                onPressed: () => context.push('/register'),
                 child: const Text('Create New Account'),
               ),
               const SizedBox(height: 16),

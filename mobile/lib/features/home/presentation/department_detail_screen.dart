@@ -78,31 +78,40 @@ class _DepartmentDetailScreenState extends ConsumerState<DepartmentDetailScreen>
     final myQueuesAsync = ref.watch(myQueuesProvider);
     final cleanSlug = widget.departmentSlug.trim();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_department?.name ?? 'Hospital Department'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else if (authState.isAuthenticated) {
-              context.go('/home');
-            } else {
-              context.go('/welcome');
-            }
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh Department',
-            onPressed: _resolveDepartment,
+    void handleBack() {
+      if (context.canPop()) {
+        context.pop();
+      } else if (authState.isAuthenticated) {
+        context.go('/home');
+      } else {
+        context.go('/welcome');
+      }
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        handleBack();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_department?.name ?? 'Hospital Department'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: handleBack,
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: _buildBody(context, authState, myQueuesAsync, cleanSlug),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh Department',
+              onPressed: _resolveDepartment,
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: _buildBody(context, authState, myQueuesAsync, cleanSlug),
+        ),
       ),
     );
   }
@@ -406,7 +415,7 @@ class _DepartmentDetailScreenState extends ConsumerState<DepartmentDetailScreen>
                     ),
                     icon: const Icon(Icons.confirmation_number_outlined, size: 18),
                     label: Text('View Active Ticket (${activeTicket.tokenNumber})'),
-                    onPressed: () => context.go('/queue/${activeTicket.id}'),
+                    onPressed: () => context.push('/queue/${activeTicket.id}'),
                   ),
                 ],
               ),

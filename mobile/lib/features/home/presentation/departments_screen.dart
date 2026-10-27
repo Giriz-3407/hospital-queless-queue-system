@@ -90,7 +90,7 @@ class _DepartmentsScreenState extends ConsumerState<DepartmentsScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () => context.go('/queue/${activeTicket.id}'),
+                    onPressed: () => context.push('/queue/${activeTicket.id}'),
                     child: const Text('Track', style: TextStyle(fontSize: 12)),
                   ),
                 ],
@@ -257,7 +257,7 @@ class _DepartmentCard extends StatelessWidget {
               label: const Text('View Active Ticket'),
               onPressed: () {
                 Navigator.pop(ctx);
-                context.go('/queue/${activeTicket!.id}');
+                context.push('/queue/${activeTicket!.id}');
               },
             ),
           ],
@@ -266,7 +266,7 @@ class _DepartmentCard extends StatelessWidget {
       return;
     }
 
-    context.go(
+    context.push(
       '/queue/join?dept_id=${department.id}&dept_name=${Uri.encodeComponent(department.name)}',
     );
   }

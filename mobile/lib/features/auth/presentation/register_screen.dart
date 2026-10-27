@@ -69,22 +69,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Patient Registration'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/welcome'),
+    void handleBack() {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/welcome');
+      }
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        handleBack();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Patient Registration'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: handleBack,
+          ),
+          actions: [
+            if (kDebugMode)
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                tooltip: 'Server Settings',
+                onPressed: () => ServerSettingsDialog.show(context),
+              ),
+          ],
         ),
-        actions: [
-          if (kDebugMode)
-            IconButton(
-              icon: const Icon(Icons.settings_outlined),
-              tooltip: 'Server Settings',
-              onPressed: () => ServerSettingsDialog.show(context),
-            ),
-        ],
-      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -303,11 +317,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               .uri
                               .queryParameters['redirect'];
                           if (redirect != null && redirect.isNotEmpty) {
-                            context.go(
+                            context.push(
                               '/login?redirect=${Uri.encodeComponent(redirect)}',
                             );
                           } else {
-                            context.go('/login');
+                            context.push('/login');
                           }
                         },
                         child: const Text('Sign In'),
@@ -320,6 +334,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -102,14 +102,28 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
     final activeTickets = myQueuesAsync.value?.where((t) => t.isActive).toList() ?? [];
     final activeTicket = activeTickets.isNotEmpty ? activeTickets.first : null;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Join Virtual Queue'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/home'),
+    void handleBack() {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/home');
+      }
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        handleBack();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Join Virtual Queue'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: handleBack,
+          ),
         ),
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -428,6 +442,7 @@ class _JoinQueueScreenState extends ConsumerState<JoinQueueScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
