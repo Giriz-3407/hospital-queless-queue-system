@@ -1075,6 +1075,7 @@ export const AdminDashboardPage: React.FC = () => {
           isOpen={!!selectedPlacardDept}
           onClose={() => setSelectedPlacardDept(null)}
           title={`Hospital Placard: ${selectedPlacardDept.name}`}
+          maxWidth="md"
         >
           {(() => {
             const slug =
@@ -1084,73 +1085,74 @@ export const AdminDashboardPage: React.FC = () => {
             const deptQrUrl = `${fixedBaseUrl}/department/${slug}`;
 
             return (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Printable Placard Container */}
                 <div
                   id="printable-placard"
-                  className="bg-white p-8 rounded-3xl border-2 border-slate-900 text-center shadow-md space-y-4 max-w-sm mx-auto"
+                  className="bg-white p-5 sm:p-6 rounded-2xl border-2 border-slate-900 text-center shadow-md space-y-3 max-w-xs sm:max-w-sm mx-auto"
                 >
-                  <div className="border-b-2 border-slate-900 pb-3">
+                  <div className="border-b-2 border-slate-900 pb-2.5">
                     <div className="text-[10px] font-black uppercase tracking-widest text-sky-700">
                       QUEUELess SMART HOSPITAL
                     </div>
-                    <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight mt-0.5">
+                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mt-0.5">
                       {selectedPlacardDept.name}
                     </h3>
-                    <div className="inline-block mt-1 bg-slate-900 text-white font-mono text-xs font-bold px-3 py-0.5 rounded-full">
+                    <div className="inline-block mt-1 bg-slate-900 text-white font-mono text-xs font-bold px-2.5 py-0.5 rounded-full">
                       {selectedPlacardDept.code} CLINIC
                     </div>
                   </div>
 
-                  <div className="py-2 flex justify-center">
-                    <div className="p-3 bg-white border-2 border-slate-200 rounded-2xl shadow-inner">
+                  <div className="py-1 flex justify-center">
+                    <div className="p-2.5 bg-white border-2 border-slate-200 rounded-xl shadow-inner">
                       <QRCodeCanvas
                         id={`placard-qr-${slug}`}
                         value={deptQrUrl}
-                        size={220}
+                        size={165}
                         level="H"
                         includeMargin={true}
                       />
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-left text-xs text-slate-700 space-y-1.5">
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-left text-xs text-slate-700 space-y-1">
                     <div className="font-bold text-slate-900 text-center uppercase tracking-wider text-[11px]">
                       How to Join This Queue
                     </div>
-                    <div className="flex items-start gap-2">
+                    <div className="flex items-start gap-1.5 text-[11px]">
                       <span className="font-bold text-sky-700">1.</span>
                       <span>Scan QR code with your mobile camera.</span>
                     </div>
-                    <div className="flex items-start gap-2">
+                    <div className="flex items-start gap-1.5 text-[11px]">
                       <span className="font-bold text-sky-700">2.</span>
                       <span>Open the Queueless link to enter the virtual line.</span>
                     </div>
-                    <div className="flex items-start gap-2">
+                    <div className="flex items-start gap-1.5 text-[11px]">
                       <span className="font-bold text-sky-700">3.</span>
                       <span>Track live position & return when called.</span>
                     </div>
                   </div>
 
-                  <div className="pt-2 text-[10px] text-slate-400 font-mono truncate">
+                  <div className="pt-1 text-[10px] text-slate-400 font-mono truncate">
                     {deptQrUrl}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-3 pt-2">
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
                   <Button
                     variant="outline"
+                    size="sm"
                     onClick={() => downloadQrCode(slug, selectedPlacardDept.name)}
                     className="gap-1.5 text-xs"
                   >
-                    <Download className="w-4 h-4" /> Save PNG
+                    <Download className="w-3.5 h-3.5" /> Save PNG
                   </Button>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" onClick={() => setSelectedPlacardDept(null)}>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedPlacardDept(null)}>
                       Close
                     </Button>
-                    <Button variant="primary" onClick={() => window.print()} className="gap-1.5 shadow-sm">
-                      <Printer className="w-4 h-4" /> Print Placard
+                    <Button variant="primary" size="sm" onClick={() => window.print()} className="gap-1.5 shadow-sm">
+                      <Printer className="w-3.5 h-3.5" /> Print Placard
                     </Button>
                   </div>
                 </div>
