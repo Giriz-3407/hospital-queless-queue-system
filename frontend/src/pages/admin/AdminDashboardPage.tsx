@@ -29,7 +29,6 @@ import {
   ExternalLink,
   UserPlus,
   Ticket,
-  Info,
 } from 'lucide-react';
 
 export const AdminDashboardPage: React.FC = () => {
@@ -43,6 +42,7 @@ export const AdminDashboardPage: React.FC = () => {
 
   // Departments State
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState<boolean>(false);
   const [isDeptModalOpen, setIsDeptModalOpen] = useState<boolean>(false);
   const [deptForm, setDeptForm] = useState<CreateDepartmentPayload>({
     name: '',
@@ -53,6 +53,7 @@ export const AdminDashboardPage: React.FC = () => {
 
   // Doctors State
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [isLoadingDoctors, setIsLoadingDoctors] = useState<boolean>(false);
   const [isDoctorModalOpen, setIsDoctorModalOpen] = useState<boolean>(false);
   const [doctorForm, setDoctorForm] = useState<CreateDoctorPayload>({
     name: '',
@@ -74,8 +75,8 @@ export const AdminDashboardPage: React.FC = () => {
   // Users State
   const [usersList, setUsersList] = useState<User[]>([]);
 
-  // QR Codes State
-  const [qrBaseUrl, setQrBaseUrl] = useState<string>('https://httpbin.org/anything');
+  // QR Codes State - defaults strictly to current live website origin
+  const [qrBaseUrl, setQrBaseUrl] = useState<string>(() => (typeof window !== 'undefined' ? window.location.origin : ''));
   const [isQrLoading, setIsQrLoading] = useState<boolean>(false);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [selectedPlacardDept, setSelectedPlacardDept] = useState<Department | null>(null);
@@ -111,21 +112,27 @@ export const AdminDashboardPage: React.FC = () => {
 
   // Fetch Departments
   const fetchDepartments = useCallback(async () => {
+    setIsLoadingDepartments(true);
     try {
       const data = await departmentService.getDepartments();
       setDepartments(data);
     } catch (err: any) {
       setError(err.message || 'Failed to load departments');
+    } finally {
+      setIsLoadingDepartments(false);
     }
   }, []);
 
   // Fetch Doctors
   const fetchDoctors = useCallback(async () => {
+    setIsLoadingDoctors(true);
     try {
       const data = await adminService.getDoctors();
       setDoctors(data);
     } catch (err: any) {
       setError(err.message || 'Failed to load doctors');
+    } finally {
+      setIsLoadingDoctors(false);
     }
   }, []);
 
@@ -165,7 +172,12 @@ export const AdminDashboardPage: React.FC = () => {
     try {
       const data = await adminService.getQrConfig(customBaseUrl);
       if (!customBaseUrl) {
-        setQrBaseUrl(data.qr_public_base_url);
+        const b = (data.qr_public_base_url || '').trim();
+        if (!b || b.includes('httpbin.org') || b.includes('queueless.hospital.org')) {
+          setQrBaseUrl(window.location.origin);
+        } else {
+          setQrBaseUrl(b);
+        }
       }
     } catch (err: any) {
       console.error('Failed to load QR configurations', err);
@@ -233,7 +245,8 @@ export const AdminDashboardPage: React.FC = () => {
   useEffect(() => {
     fetchStats();
     fetchDepartments();
-  }, [fetchStats, fetchDepartments]);
+    fetchDoctors();
+  }, [fetchStats, fetchDepartments, fetchDoctors]);
 
   useEffect(() => {
     if (activeTab === 'departments') fetchDepartments();
@@ -407,7 +420,7 @@ export const AdminDashboardPage: React.FC = () => {
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          <Building2 className="w-4 h-4" /> Departments ({departments.length})
+          <Building2 className="w-4 h-4" /> Departments ({isLoadingDepartments ? '...' : departments.length})
         </button>
 
         <button
@@ -418,7 +431,7 @@ export const AdminDashboardPage: React.FC = () => {
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          <Stethoscope className="w-4 h-4" /> Doctors ({doctors.length})
+          <Stethoscope className="w-4 h-4" /> Doctors ({isLoadingDoctors ? '...' : doctors.length})
         </button>
 
         <button
@@ -504,42 +517,59 @@ export const AdminDashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {departments.map((dept) => (
-                  <tr key={dept.id} className="hover:bg-slate-50/50">
-                    <td className="py-3 px-4 font-bold text-sky-700">{dept.code}</td>
-                    <td className="py-3 px-4 font-medium text-slate-800">
-                      <div>{dept.name}</div>
-                      {dept.description && (
-                        <div className="text-xs text-slate-400 truncate max-w-xs">{dept.description}</div>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-slate-600">{dept.avg_consultation_time} mins</td>
-                    <td className="py-3 px-4 text-slate-600">
-                      {dept.available_doctors_count ?? 0} on duty
-                    </td>
-                    <td className="py-3 px-4">
-                      {dept.is_active ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-600">
-                          Deactivated
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleDepartmentActive(dept)}
-                        className="text-xs"
-                      >
-                        {dept.is_active ? 'Deactivate' : 'Activate'}
-                      </Button>
+                {isLoadingDepartments ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                      <div className="flex items-center justify-center gap-2">
+                        <RefreshCw className="w-4 h-4 animate-spin text-sky-600" />
+                        <span>Loading departments...</span>
+                      </div>
                     </td>
                   </tr>
-                ))}
+                ) : departments.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                      No departments registered yet. Click &quot;Add Department&quot; to create one.
+                    </td>
+                  </tr>
+                ) : (
+                  departments.map((dept) => (
+                    <tr key={dept.id} className="hover:bg-slate-50/50">
+                      <td className="py-3 px-4 font-bold text-sky-700">{dept.code}</td>
+                      <td className="py-3 px-4 font-medium text-slate-800">
+                        <div>{dept.name}</div>
+                        {dept.description && (
+                          <div className="text-xs text-slate-400 truncate max-w-xs">{dept.description}</div>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600">{dept.avg_consultation_time} mins</td>
+                      <td className="py-3 px-4 text-slate-600">
+                        {dept.available_doctors_count ?? 0} on duty
+                      </td>
+                      <td className="py-3 px-4">
+                        {dept.is_active ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-600">
+                            Deactivated
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleDepartmentActive(dept)}
+                          className="text-xs"
+                        >
+                          {dept.is_active ? 'Deactivate' : 'Activate'}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -573,35 +603,52 @@ export const AdminDashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {doctors.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-50/50">
-                    <td className="py-3 px-4 font-semibold text-slate-900">{doc.display_name}</td>
-                    <td className="py-3 px-4 text-slate-600">{doc.user?.email || '-'}</td>
-                    <td className="py-3 px-4 text-sky-700 font-medium">{doc.department_name || '-'}</td>
-                    <td className="py-3 px-4 text-slate-600">{doc.specialty || '-'}</td>
-                    <td className="py-3 px-4">
-                      {doc.is_available ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
-                          Available / On-Duty
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-600">
-                          Off Duty
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleDoctorAvailability(doc)}
-                        className="text-xs"
-                      >
-                        {doc.is_available ? 'Set Off-Duty' : 'Set On-Duty'}
-                      </Button>
+                {isLoadingDoctors ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                      <div className="flex items-center justify-center gap-2">
+                        <RefreshCw className="w-4 h-4 animate-spin text-sky-600" />
+                        <span>Loading doctor profiles...</span>
+                      </div>
                     </td>
                   </tr>
-                ))}
+                ) : doctors.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                      No medical providers registered yet. Click &quot;Provision Doctor&quot; to add one.
+                    </td>
+                  </tr>
+                ) : (
+                  doctors.map((doc) => (
+                    <tr key={doc.id} className="hover:bg-slate-50/50">
+                      <td className="py-3 px-4 font-semibold text-slate-900">{doc.display_name}</td>
+                      <td className="py-3 px-4 text-slate-600">{doc.user?.email || '-'}</td>
+                      <td className="py-3 px-4 text-sky-700 font-medium">{doc.department_name || '-'}</td>
+                      <td className="py-3 px-4 text-slate-600">{doc.specialty || '-'}</td>
+                      <td className="py-3 px-4">
+                        {doc.is_available ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
+                            Available / On-Duty
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-600">
+                            Off Duty
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleDoctorAvailability(doc)}
+                          className="text-xs"
+                        >
+                          {doc.is_available ? 'Set Off-Duty' : 'Set On-Duty'}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -809,70 +856,34 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Centralized URL Configuration Box */}
+          {/* Production QR Destination Box */}
           <Card className="p-5 bg-slate-50/70 border-slate-200">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Centralized Public QR Destination Base URL
+                    Hospital Production Domain
                   </span>
-                  <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">
-                    Single Source of Truth
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
+                    Live Production QR Code Destination
                   </span>
                 </div>
                 <p className="text-xs text-slate-500">
-                  QR codes encode <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800">&lt;base_url&gt;/department/&lt;department-slug&gt;</code>. Change here to test or deploy to production.
+                  When scanned by mobile devices, patients with the Android app will open directly to the department. Other devices open the hospital web portal.
                 </p>
               </div>
 
-              {/* Quick Presets */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-slate-500 mr-1 font-medium">Presets:</span>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
-                    const u = 'https://httpbin.org/anything';
+                    const u = window.location.origin;
                     setQrBaseUrl(u);
                     fetchQrConfig(u);
                   }}
-                  className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
-                    qrBaseUrl === 'https://httpbin.org/anything'
-                      ? 'bg-sky-600 text-white border-sky-600 shadow-sm font-semibold'
-                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                  }`}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 font-medium transition-all shadow-sm"
                 >
-                  Temporary Reachable Test (httpbin)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const u = 'http://localhost:5173';
-                    setQrBaseUrl(u);
-                    fetchQrConfig(u);
-                  }}
-                  className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
-                    qrBaseUrl === 'http://localhost:5173'
-                      ? 'bg-sky-600 text-white border-sky-600 shadow-sm font-semibold'
-                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                  }`}
-                >
-                  Local Web Fallback (localhost:5173)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const u = 'https://queueless.hospital.org';
-                    setQrBaseUrl(u);
-                    fetchQrConfig(u);
-                  }}
-                  className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
-                    qrBaseUrl === 'https://queueless.hospital.org'
-                      ? 'bg-sky-600 text-white border-sky-600 shadow-sm font-semibold'
-                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                  }`}
-                >
-                  Production Placeholder
+                  Reset to Current Domain ({typeof window !== 'undefined' ? window.location.host : ''})
                 </button>
               </div>
             </div>
@@ -882,7 +893,7 @@ export const AdminDashboardPage: React.FC = () => {
                 type="url"
                 value={qrBaseUrl}
                 onChange={(e) => setQrBaseUrl(e.target.value)}
-                placeholder="https://YOUR_DOMAIN.example"
+                placeholder={typeof window !== 'undefined' ? window.location.origin : 'https://hospital-queless-queue-system.vercel.app'}
                 className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono text-xs"
               />
               <Button
@@ -891,27 +902,16 @@ export const AdminDashboardPage: React.FC = () => {
                 onClick={() => fetchQrConfig(qrBaseUrl)}
                 className="whitespace-nowrap w-full sm:w-auto"
               >
-                Regenerate QR Codes
+                Update QR Codes
               </Button>
             </div>
-
-            {/* Explanatory Banner for Testing Mode */}
-            {qrBaseUrl.includes('httpbin.org') && (
-              <div className="mt-3 p-3 rounded-xl bg-sky-50 border border-sky-200 text-xs text-sky-900 flex items-start gap-2.5">
-                <Info className="w-4 h-4 text-sky-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold">Temporary Testing Mode Active:</span> QR codes encode{' '}
-                  <code>https://httpbin.org/anything/department/&lt;slug&gt;</code>. Scanning with a camera or QR reader will open this verified reachable destination and display the path/slug. Third-party testing sites do not collect patient data or invoke verified App Links until the hospital's registered domain is configured.
-                </div>
-              </div>
-            )}
           </Card>
 
           {/* Department QR Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {departments.map((dept) => {
               const slug = dept.slug || dept.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-              const cleanBase = (qrBaseUrl || 'https://httpbin.org/anything').replace(/\/$/, '');
+              const cleanBase = (qrBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/$/, '');
               const deptQrUrl = `${cleanBase}/department/${slug}`;
 
               return (
@@ -1309,7 +1309,7 @@ export const AdminDashboardPage: React.FC = () => {
             const slug =
               selectedPlacardDept.slug ||
               selectedPlacardDept.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-            const cleanBase = (qrBaseUrl || 'https://httpbin.org/anything').replace(/\/$/, '');
+            const cleanBase = (qrBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/$/, '');
             const deptQrUrl = `${cleanBase}/department/${slug}`;
 
             return (

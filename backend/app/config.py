@@ -26,7 +26,7 @@ class Config:
 
     # QR Code Configuration
     # Single source of truth for public QR destination
-    QR_PUBLIC_BASE_URL = os.getenv("QR_PUBLIC_BASE_URL", "https://httpbin.org/anything")
+    QR_PUBLIC_BASE_URL = os.getenv("QR_PUBLIC_BASE_URL", "https://hospital-queless-queue-system.vercel.app")
 
     API_PREFIX = "/api/v1"
     APP_NAME = "Queueless Smart Hospital API"

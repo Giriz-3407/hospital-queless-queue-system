@@ -30,27 +30,60 @@ class DepartmentService:
         department_repository.seed_defaults_if_empty()
 
         departments = department_repository.find_all(active_only=active_only)
-        result = []
+        if not departments:
+            return []
+
+        dept_oids = [d["_id"] for d in departments]
         base_qr_url = _get_base_qr_url().rstrip("/")
 
+        # 1. Batch load all assigned doctors for these departments in a single query
+        all_assigned = list(doctor_repository.collection.find({"department_id": {"$in": dept_oids}}))
+        doctors_by_dept: dict[Any, list[dict[str, Any]]] = {}
+        avail_count_by_dept: dict[Any, int] = {}
+        for doc in all_assigned:
+            d_id = doc["department_id"]
+            doctors_by_dept.setdefault(d_id, []).append(doc)
+            if doc.get("is_available", True):
+                avail_count_by_dept[d_id] = avail_count_by_dept.get(d_id, 0) + 1
+
+        # 2. Batch load queue stats using a single aggregation pipeline to eliminate N+1 latency
+        pipeline = [
+            {"$match": {"department_id": {"$in": dept_oids}}},
+            {"$group": {
+                "_id": {
+                    "dept": "$department_id",
+                    "status": {"$toLower": "$status"}
+                },
+                "count": {"$sum": 1}
+            }}
+        ]
+        agg_results = list(queue_repository.collection.aggregate(pipeline))
+        stats_by_dept: dict[Any, dict[str, int]] = {}
+        for row in agg_results:
+            d_id = row["_id"]["dept"]
+            st = row["_id"]["status"]
+            cnt = row["count"]
+            if d_id not in stats_by_dept:
+                stats_by_dept[d_id] = {"waiting": 0, "called": 0, "in_consultation": 0, "completed": 0, "cancelled": 0}
+            if st in stats_by_dept[d_id]:
+                stats_by_dept[d_id][st] += cnt
+
+        result = []
         for dept in departments:
             d_oid = dept["_id"]
-            waiting_count = queue_repository.count_waiting(d_oid)
-            stats = queue_repository.get_department_stats(d_oid)
-            available_doctors = doctor_repository.count_available(d_oid)
-            assigned_doctors = doctor_repository.find_by_department(d_oid, available_only=False)
+            dept_stats = stats_by_dept.get(d_oid, {"waiting": 0, "called": 0, "in_consultation": 0, "completed": 0, "cancelled": 0})
+            waiting_count = dept_stats.get("waiting", 0)
+            available_doctors = avail_count_by_dept.get(d_oid, 0)
+            assigned_doctors = doctors_by_dept.get(d_oid, [])
 
             # Wait time estimation:
             # ceil(waiting_count * avg_consultation_time / effective_available_doctors)
-            # If no available doctor, return None to represent unavailable wait estimate
             avg_time = dept.get("avg_consultation_time", 15)
             if available_doctors > 0:
                 est_wait = math.ceil((waiting_count * avg_time) / available_doctors)
             elif len(assigned_doctors) > 0 and available_doctors == 0:
-                # Doctors assigned but currently none available
                 est_wait = None
             else:
-                # Default baseline if no doctor profiles are configured yet
                 est_wait = waiting_count * avg_time
 
             slug = dept.get("slug") or slugify_name(dept.get("name", "dept"))
@@ -61,7 +94,7 @@ class DepartmentService:
             dept_data["estimated_wait_minutes"] = est_wait
             dept_data["available_doctors_count"] = available_doctors
             dept_data["total_doctors_count"] = len(assigned_doctors)
-            dept_data["stats"] = stats
+            dept_data["stats"] = dept_stats
             dept_data["doctors"] = [
                 {
                     "id": str(doc["_id"]),

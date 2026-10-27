@@ -222,16 +222,33 @@ class AuthService:
         return doc_clean
 
     def list_doctors(self, dept_id: Optional[str] = None) -> list[dict[str, Any]]:
-        """List doctors with department and user profile details."""
+        """List doctors with department and user profile details (batch queried)."""
         doctors = doctor_repository.list_all(dept_id=dept_id)
+        if not doctors:
+            return []
+
+        # Batch load departments and users in 2 queries to avoid N+1 remote roundtrips
+        dept_ids = [d["department_id"] for d in doctors if d.get("department_id")]
+        user_ids = [d["user_id"] for d in doctors if d.get("user_id")]
+
+        dept_map = {}
+        if dept_ids:
+            for dept in department_repository.collection.find({"_id": {"$in": dept_ids}}):
+                dept_map[dept["_id"]] = dept
+
+        user_map = {}
+        if user_ids:
+            for u in user_repository.collection.find({"_id": {"$in": user_ids}}):
+                user_map[u["_id"]] = u
+
         result = []
         for d in doctors:
             item = serialize_doc(d) or {}
-            dept = department_repository.find_by_id(d.get("department_id"))
+            dept = dept_map.get(d.get("department_id"))
             if dept:
                 item["department_name"] = dept.get("name")
                 item["department_code"] = dept.get("code")
-            u = user_repository.find_by_id(d.get("user_id"))
+            u = user_map.get(d.get("user_id"))
             if u:
                 u_clean = serialize_doc(u) or {}
                 u_clean.pop("password_hash", None)
