@@ -28,6 +28,17 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
+            <!-- Android App Links for Verified Live Vercel Domain -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="hospital-queless-queue-system.vercel.app"
+                    android:pathPrefix="/department" />
+            </intent-filter>
+
             <!-- Android App Links for Verified Production Domain -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />

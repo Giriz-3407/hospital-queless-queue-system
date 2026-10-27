@@ -39,6 +39,18 @@ export const DepartmentLandingPage: React.FC = () => {
   // Centralized mobile app install destination (empty placeholder by default)
   const appInstallUrl = import.meta.env.VITE_APP_INSTALL_URL || '';
 
+  // Auto-redirect to native Android app via intent if opened on an Android mobile device
+  useEffect(() => {
+    const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+    if (isAndroid && slug) {
+      const intentUrl = `intent://department/${slug}#Intent;scheme=queueless;package=com.queueless.hospital;end`;
+      const timer = setTimeout(() => {
+        window.location.href = intentUrl;
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [slug]);
+
   useEffect(() => {
     if (!slug) return;
     setIsLoading(true);
@@ -145,6 +157,27 @@ export const DepartmentLandingPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      {/* Mobile App Smart Banner for immediate 1-tap jump */}
+      <div className="bg-gradient-to-r from-sky-600 to-indigo-700 text-white p-4 rounded-2xl shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+            <Smartphone className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold">Have the Queueless Android App?</h4>
+            <p className="text-xs text-sky-100">Tap to open this department directly in the native mobile application.</p>
+          </div>
+        </div>
+        <a
+          href={`intent://department/${departmentSlug}#Intent;scheme=queueless;package=com.queueless.hospital;end`}
+          className="flex-shrink-0 w-full sm:w-auto"
+        >
+          <Button size="sm" className="w-full sm:w-auto bg-white text-sky-700 hover:bg-sky-50 font-bold shadow-sm whitespace-nowrap">
+            Open in Queueless App
+          </Button>
+        </a>
+      </div>
+
       {/* Queueless Header & Breadcrumb */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-4">
